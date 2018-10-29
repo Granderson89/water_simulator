@@ -46,7 +46,7 @@ const float tankHeight = 6.0f;
 GLfloat deltaTime = 0.0f;
 GLfloat lastFrame = 0.0f;
 // Timestep
-const GLfloat dt = 0.1f;
+const GLfloat dt = 0.001f;
 
 // Particle shader
 Shader particleShader;
@@ -61,6 +61,8 @@ int main() {
 	// Set up particles
 	initialiseParticles();
 
+	ParticleData particles = model.getParticles();
+
 	// Game loop
 	while (!glfwWindowShouldClose(app.getWindow())) {
 		/*
@@ -71,11 +73,14 @@ int main() {
 		/*
 		** POSITION BASED FLUIDS
 		*/
-		ParticleData particles = model.getParticles();
-		// For all particles do:
-		//	Apply forces to velocity (v = v + dt * f)
-		//	predict new position based on velocity (proj = pos + dt * v)
-		// End for
+		// Apply forces and predict new position
+		for (unsigned int i = 0; i < particles.getSize(); i++)
+		{
+			// Apply gravity
+			particles.getVel(i) = particles.getVel(i) + dt * glm::vec3(0.0f, -9.8f, 0.0f);
+			// Predict new position
+			particles.getProj(i) = particles.getPos(i) + dt * particles.getVel(i);
+		}
 
 		// For all particles do:
 		//	Find neighbouring particles based on proj
@@ -99,6 +104,14 @@ int main() {
 		//	Apply velocity confinement and XSPH viscosity
 		//	Update position (pos = proj)
 		// End for
+		// Commit the position change
+		for (unsigned int i = 0; i < particles.getSize(); i++)
+		{
+			// Update velocity
+			particles.getVel(i) = (particles.getProj(i) - particles.getPos(i)) / dt;
+			// Update position
+			particles.setPos(i, particles.getProj(i));
+		}
 
 		/*
 		**	RENDER
