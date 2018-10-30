@@ -62,6 +62,8 @@ public:
 	}
 	// Get number of particles
 	unsigned int getSize() { return m_pos.size(); }
+	// Get all projected positions
+	std::vector<glm::vec3> getAllProj() { return m_proj; }
 
 	// Resize data lists
 	void resize(const unsigned int size)

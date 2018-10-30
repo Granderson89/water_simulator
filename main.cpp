@@ -4,6 +4,7 @@
 #include <cmath>  
 #include <random>
 #include <math.h>
+#include <map>
 
 // Std. Includes
 #include <string>
@@ -26,6 +27,7 @@
 #include "Model.h"
 
 void initialiseParticles();
+void updateSearchGrid(glm::vec3* positions);
 
 using namespace std;
 
@@ -34,13 +36,17 @@ Model model;
 const float radius = 1.0f;
 const float diam = 2.0f * radius;
 // Volume of water
-const float width = 10.0f;
-const float depth = 5.0f;
-const float height = 5.0f;
+const float width = 3.0f;
+const float depth = 2.0f;
+const float height = 3.0f;
 // Volume of tank
 const float tankWidth = (width + 1) * diam;
 const float tankDepth = (depth + 1) * diam;
 const float tankHeight = 6.0f;
+// Search grid
+std::map<int, std::vector<int>> grid;
+const float gridCellSize = 4.0f;
+const glm::vec3 gridMin(-0.5f * tankWidth, 0, -0.5f * tankDepth);;
 
 // Time
 GLfloat deltaTime = 0.0f;
@@ -74,17 +80,20 @@ int main() {
 		** POSITION BASED FLUIDS
 		*/
 		// Apply forces and predict new position
-		for (unsigned int i = 0; i < particles.getSize(); i++)
+		for (unsigned int p = 0; p < particles.getSize(); p++)
 		{
 			// Apply gravity
-			particles.getVel(i) = particles.getVel(i) + dt * glm::vec3(0.0f, -9.8f, 0.0f);
+			//particles.getVel(p) = particles.getVel(p) + dt * glm::vec3(0.0f, -9.8f, 0.0f);
 			// Predict new position
-			particles.getProj(i) = particles.getPos(i) + dt * particles.getVel(i);
+			particles.getProj(p) = particles.getPos(p) + dt * particles.getVel(p);
 		}
 
 		// For all particles do:
 		//	Find neighbouring particles based on proj
 		// End for
+		// Neighbour search
+		// Update the search grid
+		updateSearchGrid(particles.getAllProj().data());
 
 		// While iter < solverIterations do:
 		//	For all particles do:
@@ -160,4 +169,30 @@ void initialiseParticles()
 	// Initialise the model
 	model.initModel(waterParticles.size(), waterParticles.data(), waterMeshes.data());
 	std::cout << "Model initialised" << std::endl;
+}
+
+/*
+*  BROAD PHASE GRID UPDATE
+*/
+// Update the grid for each particle. Record which cells they occupy
+void updateSearchGrid(glm::vec3* positions)
+{
+	// Reset the grid
+	grid.clear();
+	for (int i = 0; i < width * depth * height; i++)
+	{
+		// Get the particle's position
+		glm::vec3 position = positions[i];
+		// Check which cell it is in, if the particle is not already recorded
+		// as being present in the cell then add it
+		int col = floor((position.x - gridMin.x) / gridCellSize);
+		int row = floor((position.y - gridMin.y) / gridCellSize);
+		int cell = floor((position.z - gridMin.z) / gridCellSize);
+		std::string key_string = std::to_string(col) + std::to_string(row) + std::to_string(cell);
+		int key = std::stoi(key_string);
+		if (std::find(grid[key].begin(), grid[key].end(), i) == grid[key].end())
+		{
+			grid[key].push_back(i);
+		}
+	}
 }
