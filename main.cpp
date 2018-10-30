@@ -4,6 +4,8 @@
 #include <cmath>  
 #include <random>
 #include <math.h>
+#include <map>
+#include <omp.h>
 
 // Std. Includes
 #include <string>
@@ -24,8 +26,11 @@
 #include "Shader.h"
 #include "Mesh.h"
 #include "Model.h"
+#include "PBFluids.h"
 
 void initialiseParticles();
+void updateSearchGrid();
+std::vector<int> getNeighbours(const unsigned int index);
 
 using namespace std;
 
@@ -35,16 +40,21 @@ const float radius = 1.0f;
 const float diam = 2.0f * radius;
 // Volume of water
 const float width = 10.0f;
-const float depth = 5.0f;
+const float depth = 3.0f;
 const float height = 5.0f;
+const float restDensity = 0.01f;
 // Volume of tank
 const float tankWidth = (width + 1) * diam;
 const float tankDepth = (depth + 1) * diam;
 const float tankHeight = 6.0f;
+// Search grid
+std::map<int, std::vector<int>> grid;
+const float gridCellSize = 10.0f;
+const glm::vec3 gridMin(-0.5f * tankWidth, 0, -0.5f * tankDepth);;
 
-// Time
-GLfloat deltaTime = 0.0f;
-GLfloat lastFrame = 0.0f;
+// Solver iterations
+const unsigned int solverIterations = 5;
+
 // Timestep
 const GLfloat dt = 0.1f;
 
@@ -61,6 +71,8 @@ int main() {
 	// Set up particles
 	initialiseParticles();
 
+	ParticleData particles = model.getParticles();
+
 	// Game loop
 	while (!glfwWindowShouldClose(app.getWindow())) {
 		/*
@@ -71,15 +83,21 @@ int main() {
 		/*
 		** POSITION BASED FLUIDS
 		*/
-		ParticleData particles = model.getParticles();
-		// For all particles do:
-		//	Apply forces to velocity (v = v + dt * f)
-		//	predict new position based on velocity (proj = pos + dt * v)
-		// End for
+		// Apply forces and predict new position
+		for (unsigned int p = 0; p < particles.getSize(); p++)
+		{
+			// Apply gravity
+			particles.getVel(p) = particles.getVel(p) + dt * glm::vec3(0.0f, -9.8f, 0.0f) / solverIterations;
+			// Predict new position
+			particles.getProj(p) = particles.getPos(p) + dt * particles.getVel(p);
+		}
 
 		// For all particles do:
 		//	Find neighbouring particles based on proj
 		// End for
+		// Neighbour search
+		// Update the search grid
+		updateSearchGrid();
 
 		// While iter < solverIterations do:
 		//	For all particles do:
@@ -93,12 +111,97 @@ int main() {
 		//		Update proj (proj = proj + dp)
 		//	End for
 		// End while
+		// Solver loop
+		unsigned int iters = 0;
+		while (iters < solverIterations)
+		{
+#pragma omp parallel for num_threads(8)
+			// Calculate lambda
+			for (int p = 0; p < particles.getSize(); p++)
+			{
+				// Get particle p's neighbours
+				std::vector<int> neighbours = getNeighbours(p);
+				// Calculate density
+				if (neighbours.size() > 0)
+				{
+					PBFluids::calculateDensity(p, particles.getSize(), &particles.getProj(0), &particles.getMass(0),
+						neighbours.size(), &neighbours.at(0), model.getRestDensity(), model.getDensity(p));
+					// Calculate lambda
+					PBFluids::calculateLambda(p, particles.getSize(), &particles.getProj(0), &particles.getMass(0),
+						model.getDensity(p), neighbours.size(), &neighbours.at(0), model.getRestDensity(), model.getLambda(p));
+				}
+
+			}
+#pragma omp parallel for num_threads(8)
+			// Calculate dp
+			for (int p = 0; p < particles.getSize(); p++)
+			{
+				// Get particle p's neighbours
+				std::vector<int> neighbours = getNeighbours(p);
+				// Calculate dp
+				if (neighbours.size() > 0)
+				{
+					glm::vec3 dp;
+					PBFluids::solveDensityConstraint(p, particles.getSize(), &particles.getProj(0), &particles.getMass(0),
+						neighbours.size(), &neighbours.at(0), model.getRestDensity(), &model.getLambda(0), dp);
+					model.getDp(p) = dp;
+				}
+				// Perform collision detection and response
+				glm::vec3 preCollision = particles.getProj(p);
+				if (preCollision.y < 0.0f) {
+					particles.getProj(p) = (glm::vec3(
+						preCollision.x,
+						0.0f,
+						preCollision.z));
+				}
+				if (preCollision.x < -tankWidth / 2) {
+					particles.getProj(p) = (glm::vec3(
+						-tankWidth / 2,
+						preCollision.y,
+						preCollision.z));
+				}
+				if (preCollision.x > tankWidth / 2) {
+					particles.getProj(p) = (glm::vec3(
+						tankWidth / 2,
+						preCollision.y,
+						preCollision.z));
+				}
+				if (preCollision.z < -tankDepth / 2) {
+					particles.getProj(p) = (glm::vec3(
+						preCollision.x,
+						preCollision.y,
+						-tankDepth / 2));
+				}
+				if (preCollision.z > tankDepth / 2) {
+					particles.getProj(p) = (glm::vec3(
+						preCollision.x,
+						preCollision.y,
+						tankDepth / 2));
+				}
+			}
+#pragma omp parallel for num_threads(8)
+			// Update projected positions
+			for (int p = 0; p < particles.getSize(); p++)
+			{
+				particles.getProj(p) = particles.getProj(p) + model.getDp(p);
+			}
+			iters++;
+		}
 
 		// For all particles do:
 		//	Update velocity (v = (proj - pos) / dt)
 		//	Apply velocity confinement and XSPH viscosity
 		//	Update position (pos = proj)
 		// End for
+#pragma omp parallel for num_threads(8)
+		// Commit the position change
+		for (int i = 0; i < particles.getSize(); i++)
+		{
+			// Update velocity
+			particles.getVel(i) = (particles.getProj(i) - particles.getPos(i)) / dt;
+			// Update position
+			particles.setPos(i, particles.getProj(i));
+		}
 
 		/*
 		**	RENDER
@@ -106,7 +209,7 @@ int main() {
 		// clear buffer
 		app.clear();
 		// draw particles
-		for (unsigned int i = 0; i < particles.getSize(); i++)
+		for (int i = 0; i < particles.getSize(); i++)
 		{
 			app.draw(particles.getMesh(i));
 		}
@@ -138,6 +241,10 @@ void initialiseParticles()
 				int index = i * height * depth + j * depth + k;
 				// Position
 				waterParticles[index] = diam * glm::vec3(i, j, k) + origin;
+				if (j % 2 == 0)
+					waterParticles[index] += glm::vec3(diam / 2.0f, 0.0f, 0.0f);
+				if (k % 2 == 0)
+					waterParticles[index] += glm::vec3(0.0f, 0.0f, diam / 2.0f);
 				// Mesh
 				waterMeshes[index] = Mesh::Mesh();
 				waterMeshes[index].scale(glm::vec3(.1f, .1f, .1f));
@@ -145,6 +252,63 @@ void initialiseParticles()
 				waterMeshes[index].setShader(particleShader);
 			}
 	// Initialise the model
-	model.initModel(waterParticles.size(), waterParticles.data(), waterMeshes.data());
+	model.initModel(waterParticles.size(), waterParticles.data(), waterMeshes.data(), restDensity);
 	std::cout << "Model initialised" << std::endl;
+}
+
+/*
+*  BROAD PHASE GRID UPDATE
+*/
+// Update the grid for each particle. Record which cells they occupy
+void updateSearchGrid()
+{
+	// Reset the grid
+	grid.clear();
+	int numParticles = width * depth * height;
+#pragma omp parallel for num_threads(8)
+	for (int i = 0; i < numParticles; i++)
+	{
+		// Get the particle's position
+		glm::vec3 position = model.getParticles().getProj(i);
+		// Check which cell it is in, if the particle is not already recorded
+		// as being present in the cell then add it
+		int col = floor((position.x - gridMin.x) / gridCellSize);
+		int row = floor((position.y - gridMin.y) / gridCellSize);
+		int cell = floor((position.z - gridMin.z) / gridCellSize);
+		std::string key_string = std::to_string(col) + std::to_string(row) + std::to_string(cell);
+		int key = std::stoi(key_string);
+#pragma omp critical 
+		{
+			if (std::find(grid[key].begin(), grid[key].end(), i) == grid[key].end())
+			{
+				grid[key].push_back(i);
+			}
+		}
+	}
+}
+
+std::vector<int> getNeighbours(const unsigned int index)
+{
+	std::vector<int> neighbours;
+	// Create a map iterator and point to beginning of grip
+	std::map<int, std::vector<int>>::iterator it = grid.begin();
+	// Iterate over the map using c++11 range based for loop
+	for (std::pair<int, std::vector<int>> element : grid) {
+		// Accessing KEY from element
+		int cell = element.first;
+		// Accessing VALUE from element.
+		std::vector<int> occupants = element.second;
+		// If particle is in this cell, add other occupants to neighbours
+		if (std::find(occupants.begin(), occupants.end(), index) != occupants.end())
+		{
+			for (int i = 0; i < occupants.size(); i++)
+			{
+				if (occupants.at(i) != index)
+				{
+					neighbours.push_back(occupants.at(i));
+				}
+			}
+		}
+	}
+	return neighbours;
 }
