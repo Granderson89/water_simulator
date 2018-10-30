@@ -40,7 +40,7 @@ const float radius = 1.0f;
 const float diam = 2.0f * radius;
 // Volume of water
 const float width = 10.0f;
-const float depth = 3.0f;
+const float depth = 5.0f;
 const float height = 5.0f;
 const float restDensity = 0.01f;
 // Volume of tank
@@ -49,11 +49,11 @@ const float tankDepth = (depth + 1) * diam;
 const float tankHeight = 6.0f;
 // Search grid
 std::map<int, std::vector<int>> grid;
-const float gridCellSize = 10.0f;
+const float gridCellSize = 3.0f;
 const glm::vec3 gridMin(-0.5f * tankWidth, 0, -0.5f * tankDepth);;
 
 // Solver iterations
-const unsigned int solverIterations = 5;
+const unsigned int solverIterations = 4;
 
 // Timestep
 const GLfloat dt = 0.1f;
@@ -87,7 +87,7 @@ int main() {
 		for (unsigned int p = 0; p < particles.getSize(); p++)
 		{
 			// Apply gravity
-			particles.getVel(p) = particles.getVel(p) + dt * glm::vec3(0.0f, -9.8f, 0.0f) / solverIterations;
+			particles.getVel(p) += dt * glm::vec3(0.0f, -9.8f, 0.0f);
 			// Predict new position
 			particles.getProj(p) = particles.getPos(p) + dt * particles.getVel(p);
 		}
@@ -114,7 +114,7 @@ int main() {
 		// Solver loop
 		unsigned int iters = 0;
 		while (iters < solverIterations)
-		{
+		{			
 #pragma omp parallel for num_threads(8)
 			// Calculate lambda
 			for (int p = 0; p < particles.getSize(); p++)
@@ -132,6 +132,8 @@ int main() {
 				}
 
 			}
+			
+
 #pragma omp parallel for num_threads(8)
 			// Calculate dp
 			for (int p = 0; p < particles.getSize(); p++)
@@ -147,36 +149,27 @@ int main() {
 					model.getDp(p) = dp;
 				}
 				// Perform collision detection and response
-				glm::vec3 preCollision = particles.getProj(p);
+				glm::vec3 preCollision = particles.getProj(p) + model.getDp(p);
+				float penetration;
 				if (preCollision.y < 0.0f) {
-					particles.getProj(p) = (glm::vec3(
-						preCollision.x,
-						0.0f,
-						preCollision.z));
+					penetration = preCollision.y;
+					model.getDp(p).y -= 1.5f * penetration;
 				}
 				if (preCollision.x < -tankWidth / 2) {
-					particles.getProj(p) = (glm::vec3(
-						-tankWidth / 2,
-						preCollision.y,
-						preCollision.z));
+					penetration = preCollision.x - (-tankWidth / 2);
+					model.getDp(p).x -= 1.5f * penetration;
 				}
 				if (preCollision.x > tankWidth / 2) {
-					particles.getProj(p) = (glm::vec3(
-						tankWidth / 2,
-						preCollision.y,
-						preCollision.z));
+					penetration = preCollision.x - (tankWidth / 2);
+					model.getDp(p).x -= 1.5f * penetration;
 				}
 				if (preCollision.z < -tankDepth / 2) {
-					particles.getProj(p) = (glm::vec3(
-						preCollision.x,
-						preCollision.y,
-						-tankDepth / 2));
+					penetration = preCollision.z - (-tankDepth / 2);
+					model.getDp(p).z -= 1.5f * penetration;
 				}
 				if (preCollision.z > tankDepth / 2) {
-					particles.getProj(p) = (glm::vec3(
-						preCollision.x,
-						preCollision.y,
-						tankDepth / 2));
+					penetration = preCollision.z - (tankDepth / 2);
+					model.getDp(p).z -= 1.5f * penetration;
 				}
 			}
 #pragma omp parallel for num_threads(8)
@@ -282,6 +275,7 @@ void updateSearchGrid()
 			if (std::find(grid[key].begin(), grid[key].end(), i) == grid[key].end())
 			{
 				grid[key].push_back(i);
+				model.getCell(i) = key;
 			}
 		}
 	}
@@ -290,24 +284,12 @@ void updateSearchGrid()
 std::vector<int> getNeighbours(const unsigned int index)
 {
 	std::vector<int> neighbours;
-	// Create a map iterator and point to beginning of grip
-	std::map<int, std::vector<int>>::iterator it = grid.begin();
-	// Iterate over the map using c++11 range based for loop
-	for (std::pair<int, std::vector<int>> element : grid) {
-		// Accessing KEY from element
-		int cell = element.first;
-		// Accessing VALUE from element.
-		std::vector<int> occupants = element.second;
-		// If particle is in this cell, add other occupants to neighbours
-		if (std::find(occupants.begin(), occupants.end(), index) != occupants.end())
+	std::vector<int> occupants = grid[model.getCell(index)];
+	for (int i = 0; i < occupants.size(); i++)
+	{
+		if (occupants[i] != index)
 		{
-			for (int i = 0; i < occupants.size(); i++)
-			{
-				if (occupants.at(i) != index)
-				{
-					neighbours.push_back(occupants.at(i));
-				}
-			}
+			neighbours.push_back(occupants[i]);
 		}
 	}
 	return neighbours;

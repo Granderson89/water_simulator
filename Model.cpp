@@ -18,4 +18,5 @@ void Model::resizeParticleData(const unsigned int size)
 	m_density.resize(size);
 	m_lambda.resize(size);
 	m_dp.resize(size);
+	m_cell.resize(size);
 }
