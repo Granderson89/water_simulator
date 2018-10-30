@@ -9,6 +9,7 @@
 //	- current positions
 //	- projected positions
 //	- current velocities
+//	- masses
 //	- inverse masses
 //	- meshes for rendering
 
@@ -18,6 +19,7 @@ public:
 	ParticleData() : m_pos(),
 		m_proj(),
 		m_vel(),
+		m_masses(),
 		m_invMasses(),
 		m_meshes()
 	{}
@@ -26,6 +28,7 @@ public:
 		m_pos.clear();
 		m_proj.clear();
 		m_vel.clear();
+		m_masses.clear();
 		m_invMasses.clear();
 		m_meshes.clear();
 	}
@@ -47,9 +50,11 @@ public:
 	{
 		m_vel[i] = vel;
 	}
+	float &getMass(const unsigned int i) { return m_masses[i]; }
 	float &getInvMass(const unsigned int i) { return m_invMasses[i]; }
 	void setMass(const unsigned int i, const float mass)
 	{
+		m_masses[i] = mass;
 		if (mass != 0.0f)
 			m_invMasses[i] = 1.0f / mass;
 		else
@@ -71,6 +76,7 @@ public:
 		m_pos.resize(size);
 		m_proj.resize(size);
 		m_vel.resize(size);
+		m_masses.resize(size);
 		m_invMasses.resize(size);
 		m_meshes.resize(size);
 	}
@@ -84,6 +90,8 @@ private:
 	std::vector<glm::vec3> m_proj;
 	// Velocities
 	std::vector<glm::vec3> m_vel;
+	// Masses
+	std::vector<float> m_masses;
 	// Inverse masses
 	std::vector<float> m_invMasses;
 	// Meshes
