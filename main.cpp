@@ -28,10 +28,9 @@
 #include "Model.h"
 #include "PBFluids.h"
 #include "Constraint.h"
+#include "SearchGrid.h"
 
 void initialiseParticles();
-void updateSearchGrid();
-std::vector<unsigned int> getNeighbours(const unsigned int index);
 void boundaryCollisionDetection(ParticleData &particleData);
 void createCollisionConstraint(glm::vec3 particle, glm::vec3 ghost, unsigned int index, glm::vec3 collisionNormal);
 
@@ -50,10 +49,6 @@ const float restDensity = 0.01f;
 const float tankWidth = (width + 1) * diam;
 const float tankDepth = (depth + 1) * diam;
 const float tankHeight = 6.0f;
-// Search grid
-std::map<int, std::vector<unsigned int>> grid;
-const float gridCellSize = 3.0f;
-const glm::vec3 gridMin(-0.5f * tankWidth, 0, -0.5f * tankDepth);;
 // List of collision constraints
 std::vector<BoundaryConstraint*> collisionConstraints;
 
@@ -76,6 +71,10 @@ int main() {
 	// Set up particles
 	initialiseParticles();
 	ParticleData particles = model.getParticles();
+
+	// Create a search grid
+	SearchGrid searchGrid;
+	searchGrid.initSearchGrid(tankWidth, tankDepth, tankHeight, particles.getSize());
 	
 	// Game loop
 	while (!glfwWindowShouldClose(app.getWindow())) {
@@ -98,7 +97,7 @@ int main() {
 
 		// Neighbour search
 		// Update the search grid
-		updateSearchGrid();
+		searchGrid.updateSearchGrid(model);
 		// Create boundary collision constraints
 		boundaryCollisionDetection(particles);
 
@@ -111,7 +110,7 @@ int main() {
 			for (int p = 0; p < particles.getSize(); p++)
 			{
 				// Get particle p's neighbours
-				std::vector<unsigned int> neighbours = getNeighbours(p);
+				std::vector<unsigned int> neighbours = searchGrid.getNeighbours(model, p);
 				unsigned int numNeighbours = neighbours.size();
 
 				if (numNeighbours > 0)
@@ -128,7 +127,7 @@ int main() {
 			for (int p = 0; p < particles.getSize(); p++)
 			{
 				// Get particle p's neighbours
-				std::vector<unsigned int> neighbours = getNeighbours(p);
+				std::vector<unsigned int> neighbours = searchGrid.getNeighbours(model, p);
 				unsigned int numNeighbours = neighbours.size();
 				// Calculate dp
 				if (numNeighbours > 0)
@@ -218,57 +217,6 @@ void initialiseParticles()
 	// Initialise the model
 	model.initModel(waterParticles.size(), waterParticles.data(), waterMeshes.data(), restDensity);
 	std::cout << "Model initialised" << std::endl;
-}
-
-/*
-*  BROAD PHASE GRID UPDATE
-*/
-// Update the grid for each particle. Record which cells they occupy
-void updateSearchGrid()
-{
-	// Reset the grid
-	grid.clear();
-	int numParticles = width * depth * height;
-	// Get the particle data
-	ParticleData particles = model.getParticles();
-	// Record cell position of each particle
-	for (int i = 0; i < numParticles; i++)
-	{
-		// Get the particle's position
-		glm::vec3 position = particles.getProj(i);
-		// Check which cell it is in, if the particle is not already recorded
-		// as being present in the cell then add it
-		int col = floor((position.x - gridMin.x) / gridCellSize);
-		int row = floor((position.y - gridMin.y) / gridCellSize);
-		int cell = floor((position.z - gridMin.z) / gridCellSize);
-		std::string key_string = std::to_string(col) + std::to_string(row) + std::to_string(cell);
-		int key = std::stoi(key_string);
-
-		if (std::find(grid[key].begin(), grid[key].end(), i) == grid[key].end())
-		{
-			// Record in the grid map
-			grid[key].push_back(i);
-			// Record occupied cell for the particle
-			model.getCell(i) = key;
-		}
-	}
-}
-
-// Get a particle's neighbours
-std::vector<unsigned int> getNeighbours(const unsigned int index)
-{
-	std::vector<unsigned int> neighbours;
-	// Get other occupants in this particle's cell
-	std::vector<unsigned int> occupants = grid[model.getCell(index)];
-	// Add to these to the list of neighbours
-	for (int i = 0; i < occupants.size(); i++)
-	{
-		if (occupants[i] != index)
-		{
-			neighbours.push_back(occupants[i]);
-		}
-	}
-	return neighbours;
 }
 
 // Detect all collisions with the boundaries and create a constraint as a response
