@@ -4,7 +4,7 @@
 #include <iostream>
 
 // Calculate the density for particle i
-bool PBFluids::calculateDensity(int particleIndex, int numParticles, glm::vec3 x[], float mass[], int numNeighbours, int neighbours[], float density0, float &density)
+bool PBFluids::calculateDensity(int particleIndex, int numParticles, glm::vec3 x[], float mass[], unsigned int numNeighbours, unsigned int neighbours[], float density0, float &density)
 {
 	density = 0.0f;
 	float h = 2.0f;
@@ -20,7 +20,7 @@ bool PBFluids::calculateDensity(int particleIndex, int numParticles, glm::vec3 x
 }
 
 // Calculate the lambda multiplier for particle i
-bool PBFluids::calculateLambda(int particleIndex, int numParticles, glm::vec3 x[], float mass[], float density, int numNeighbours, int neighbours[], float density0, float &lambda)
+bool PBFluids::calculateLambda(int particleIndex, int numParticles, glm::vec3 x[], float mass[], float density, unsigned int numNeighbours, unsigned int neighbours[], float density0, float &lambda)
 {
 	float h = 2.0f;
 
@@ -54,7 +54,7 @@ bool PBFluids::calculateLambda(int particleIndex, int numParticles, glm::vec3 x[
 	return true;
 }
 // Calculate position correction
-bool PBFluids::solveDensityConstraint(int particleIndex, int numParticles, glm::vec3 x[], float mass[], int numNeighbours, int neighbours[], float density0, float lambda[], glm::vec3 & corr)
+bool PBFluids::solveDensityConstraint(int particleIndex, int numParticles, glm::vec3 x[], float mass[], unsigned int numNeighbours, unsigned int neighbours[], float density0, float lambda[], glm::vec3 & corr)
 {
 	float h = 2.0f;
 	corr = glm::vec3(0.0f);

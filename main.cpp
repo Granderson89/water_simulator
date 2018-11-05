@@ -27,10 +27,13 @@
 #include "Mesh.h"
 #include "Model.h"
 #include "PBFluids.h"
+#include "Constraint.h"
 
 void initialiseParticles();
 void updateSearchGrid();
-std::vector<int> getNeighbours(const unsigned int index);
+std::vector<unsigned int> getNeighbours(const unsigned int index);
+void boundaryCollisionDetection(ParticleData &particleData);
+void createCollisionConstraint(glm::vec3 particle, glm::vec3 ghost, unsigned int index, glm::vec3 collisionNormal);
 
 using namespace std;
 
@@ -40,7 +43,7 @@ const float radius = 1.0f;
 const float diam = 2.0f * radius;
 // Volume of water
 const float width = 10.0f;
-const float depth = 5.0f;
+const float depth = 10.0f;
 const float height = 5.0f;
 const float restDensity = 0.01f;
 // Volume of tank
@@ -48,9 +51,11 @@ const float tankWidth = (width + 1) * diam;
 const float tankDepth = (depth + 1) * diam;
 const float tankHeight = 6.0f;
 // Search grid
-std::map<int, std::vector<int>> grid;
+std::map<int, std::vector<unsigned int>> grid;
 const float gridCellSize = 3.0f;
 const glm::vec3 gridMin(-0.5f * tankWidth, 0, -0.5f * tankDepth);;
+// List of collision constraints
+std::vector<BoundaryConstraint*> collisionConstraints;
 
 // Solver iterations
 const unsigned int solverIterations = 4;
@@ -70,9 +75,8 @@ int main() {
 	
 	// Set up particles
 	initialiseParticles();
-
 	ParticleData particles = model.getParticles();
-
+	
 	// Game loop
 	while (!glfwWindowShouldClose(app.getWindow())) {
 		/*
@@ -92,101 +96,68 @@ int main() {
 			particles.getProj(p) = particles.getPos(p) + dt * particles.getVel(p);
 		}
 
-		// For all particles do:
-		//	Find neighbouring particles based on proj
-		// End for
 		// Neighbour search
 		// Update the search grid
 		updateSearchGrid();
+		// Create boundary collision constraints
+		boundaryCollisionDetection(particles);
 
-		// While iter < solverIterations do:
-		//	For all particles do:
-		//		Calculate lambda
-		//	End for
-		//	For all particles do:
-		//		Calculate dp
-		//		Perform collision detection and response
-		//	End for
-		//	For all particles do:
-		//		Update proj (proj = proj + dp)
-		//	End for
-		// End while
 		// Solver loop
 		unsigned int iters = 0;
 		while (iters < solverIterations)
-		{			
-#pragma omp parallel for num_threads(8)
+		{	
+			// DENSITY CONSTRAINT
 			// Calculate lambda
 			for (int p = 0; p < particles.getSize(); p++)
 			{
 				// Get particle p's neighbours
-				std::vector<int> neighbours = getNeighbours(p);
-				// Calculate density
-				if (neighbours.size() > 0)
+				std::vector<unsigned int> neighbours = getNeighbours(p);
+				unsigned int numNeighbours = neighbours.size();
+
+				if (numNeighbours > 0)
 				{
+					// Calculate density
 					PBFluids::calculateDensity(p, particles.getSize(), &particles.getProj(0), &particles.getMass(0),
-						neighbours.size(), &neighbours.at(0), model.getRestDensity(), model.getDensity(p));
+						numNeighbours, &neighbours.at(0), model.getRestDensity(), model.getDensity(p));
 					// Calculate lambda
 					PBFluids::calculateLambda(p, particles.getSize(), &particles.getProj(0), &particles.getMass(0),
-						model.getDensity(p), neighbours.size(), &neighbours.at(0), model.getRestDensity(), model.getLambda(p));
+						model.getDensity(p), numNeighbours, &neighbours.at(0), model.getRestDensity(), model.getLambda(p));
 				}
-
 			}
-			
-
-#pragma omp parallel for num_threads(8)
 			// Calculate dp
 			for (int p = 0; p < particles.getSize(); p++)
 			{
 				// Get particle p's neighbours
-				std::vector<int> neighbours = getNeighbours(p);
+				std::vector<unsigned int> neighbours = getNeighbours(p);
+				unsigned int numNeighbours = neighbours.size();
 				// Calculate dp
-				if (neighbours.size() > 0)
+				if (numNeighbours > 0)
 				{
 					glm::vec3 dp;
 					PBFluids::solveDensityConstraint(p, particles.getSize(), &particles.getProj(0), &particles.getMass(0),
-						neighbours.size(), &neighbours.at(0), model.getRestDensity(), &model.getLambda(0), dp);
+						numNeighbours, &neighbours.at(0), model.getRestDensity(), &model.getLambda(0), dp);
 					model.getDp(p) = dp;
-				}
-				// Perform collision detection and response
-				glm::vec3 preCollision = particles.getProj(p) + model.getDp(p);
-				float penetration;
-				if (preCollision.y < 0.0f) {
-					penetration = preCollision.y;
-					model.getDp(p).y -= 1.5f * penetration;
-				}
-				if (preCollision.x < -tankWidth / 2) {
-					penetration = preCollision.x - (-tankWidth / 2);
-					model.getDp(p).x -= 1.5f * penetration;
-				}
-				if (preCollision.x > tankWidth / 2) {
-					penetration = preCollision.x - (tankWidth / 2);
-					model.getDp(p).x -= 1.5f * penetration;
-				}
-				if (preCollision.z < -tankDepth / 2) {
-					penetration = preCollision.z - (-tankDepth / 2);
-					model.getDp(p).z -= 1.5f * penetration;
-				}
-				if (preCollision.z > tankDepth / 2) {
-					penetration = preCollision.z - (tankDepth / 2);
-					model.getDp(p).z -= 1.5f * penetration;
-				}
+				}				
 			}
-#pragma omp parallel for num_threads(8)
 			// Update projected positions
 			for (int p = 0; p < particles.getSize(); p++)
 			{
 				particles.getProj(p) = particles.getProj(p) + model.getDp(p);
 			}
+
+			// COLLISION CONSTRAINTS
+			// Solve collision constraints
+			for (int i = 0; i < collisionConstraints.size(); i++)
+			{
+				glm::vec3 dp;
+				collisionConstraints.at(i)->solveDistanceConstraint(dp);
+				int p = collisionConstraints.at(i)->getIndex();
+				model.getDp(p) = dp;
+				particles.getProj(p) = particles.getProj(p) + model.getDp(p);
+			}
 			iters++;
 		}
 
-		// For all particles do:
-		//	Update velocity (v = (proj - pos) / dt)
-		//	Apply velocity confinement and XSPH viscosity
-		//	Update position (pos = proj)
-		// End for
-#pragma omp parallel for num_threads(8)
 		// Commit the position change
 		for (int i = 0; i < particles.getSize(); i++)
 		{
@@ -258,11 +229,13 @@ void updateSearchGrid()
 	// Reset the grid
 	grid.clear();
 	int numParticles = width * depth * height;
-#pragma omp parallel for num_threads(8)
+	// Get the particle data
+	ParticleData particles = model.getParticles();
+	// Record cell position of each particle
 	for (int i = 0; i < numParticles; i++)
 	{
 		// Get the particle's position
-		glm::vec3 position = model.getParticles().getProj(i);
+		glm::vec3 position = particles.getProj(i);
 		// Check which cell it is in, if the particle is not already recorded
 		// as being present in the cell then add it
 		int col = floor((position.x - gridMin.x) / gridCellSize);
@@ -270,21 +243,24 @@ void updateSearchGrid()
 		int cell = floor((position.z - gridMin.z) / gridCellSize);
 		std::string key_string = std::to_string(col) + std::to_string(row) + std::to_string(cell);
 		int key = std::stoi(key_string);
-#pragma omp critical 
+
+		if (std::find(grid[key].begin(), grid[key].end(), i) == grid[key].end())
 		{
-			if (std::find(grid[key].begin(), grid[key].end(), i) == grid[key].end())
-			{
-				grid[key].push_back(i);
-				model.getCell(i) = key;
-			}
+			// Record in the grid map
+			grid[key].push_back(i);
+			// Record occupied cell for the particle
+			model.getCell(i) = key;
 		}
 	}
 }
 
-std::vector<int> getNeighbours(const unsigned int index)
+// Get a particle's neighbours
+std::vector<unsigned int> getNeighbours(const unsigned int index)
 {
-	std::vector<int> neighbours;
-	std::vector<int> occupants = grid[model.getCell(index)];
+	std::vector<unsigned int> neighbours;
+	// Get other occupants in this particle's cell
+	std::vector<unsigned int> occupants = grid[model.getCell(index)];
+	// Add to these to the list of neighbours
 	for (int i = 0; i < occupants.size(); i++)
 	{
 		if (occupants[i] != index)
@@ -293,4 +269,71 @@ std::vector<int> getNeighbours(const unsigned int index)
 		}
 	}
 	return neighbours;
+}
+
+// Detect all collisions with the boundaries and create a constraint as a response
+void boundaryCollisionDetection(ParticleData &particles)
+{
+	collisionConstraints.clear();
+	for (int i = 0; i < model.getParticles().getSize(); i++)
+	{
+		auto particle = particles.getProj(i);
+		glm::vec3 ghost;
+		if (particle.y < 0.0f)
+		{
+			// Create 'ghost' particle to act as boundary
+			ghost = glm::vec3(particle.x, 0.0f, particle.z);
+			glm::vec3 collisionNormal(0.0f, 1.0f, 0.0f);
+			createCollisionConstraint(particle, ghost, i, collisionNormal);
+		}
+		if (particle.x < -tankWidth / 2.0f)
+		{
+			// Create 'ghost' particle to act as boundary
+			glm::vec3 ghost(-tankWidth / 2.0f, particle.y, particle.z);
+			glm::vec3 collisionNormal(1.0f, 0.0f, 0.0f);
+			createCollisionConstraint(particle, ghost, i, collisionNormal);
+		}
+		else if (particle.x > tankWidth / 2.0f)
+		{
+			// Create 'ghost' particle to act as boundary
+			glm::vec3 ghost(tankWidth / 2.0f, particle.y, particle.z);
+			glm::vec3 collisionNormal(-1.0f, 0.0f, 0.0f);
+			createCollisionConstraint(particle, ghost, i, collisionNormal);
+		}
+		if (particle.z < -tankDepth / 2.0f)
+		{
+			// Create 'ghost' particle to act as boundary
+			glm::vec3 ghost(particle.x, particle.y, -tankDepth / 2.0f);
+			glm::vec3 collisionNormal(0.0f, 0.0f, 1.0f);
+			createCollisionConstraint(particle, ghost, i, collisionNormal);
+		}
+		else if (particle.z > tankDepth / 2.0f)
+		{
+			// Create 'ghost' particle to act as boundary
+			glm::vec3 ghost(particle.x, particle.y, tankDepth / 2.0f);
+			glm::vec3 collisionNormal(0.0f, 0.0f, -1.0f);
+			createCollisionConstraint(particle, ghost, i, collisionNormal);
+		}
+	}
+}
+
+// Create a collision constraint, given a particle, it's boundary ghost particle and the boundary normal
+void createCollisionConstraint(glm::vec3 particle, glm::vec3 ghost, unsigned int index, glm::vec3 collisionNormal)
+{
+	// Set up water particle info for the constraint 
+	Constraint::Particle *p1 = new Constraint::Particle();
+	p1->position = particle;
+	p1->invMass = model.getParticles().getInvMass(index);
+	p1->index = index;
+	// Create a ghost particle at the boundary
+	// Bigger inverse mass -> smaller response
+	Constraint::Particle *p2 = new Constraint::Particle();
+	p2->position = ghost;
+	p2->invMass = 20.0f;
+	std::vector<Constraint::Particle*> particles;
+	particles.push_back(p1);
+	particles.push_back(p2);
+	// Create a boundary constraint between water and ghost particle
+	BoundaryConstraint *constraint = new BoundaryConstraint(particles, 1.0f, 0.2f, collisionNormal);
+	collisionConstraints.push_back(constraint);
 }

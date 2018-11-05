@@ -10,6 +10,7 @@ void Model::initModel(const unsigned int numParticles, glm::vec3* particles, Mes
 		m_particles.setPos(i, particles[i]);
 		m_particles.setMass(i, 1.0f);
 	}
+	
 }
 
 void Model::resizeParticleData(const unsigned int size)

@@ -9,8 +9,8 @@ public:
 		int numParticles,
 		glm::vec3 x[],
 		float mass[],
-		int numNeighbours,
-		int neighbours[],
+		unsigned int numNeighbours,
+		unsigned int neighbours[],
 		float density0,
 		float &density);
 	static bool calculateLambda(
@@ -19,8 +19,8 @@ public:
 		glm::vec3 x[],
 		float mass[],
 		float density,
-		int numNeighbours,
-		int neighbours[],
+		unsigned int numNeighbours,
+		unsigned int neighbours[],
 		float density0,
 		float &lambda);
 	static bool solveDensityConstraint(
@@ -28,8 +28,8 @@ public:
 		int numParticles,
 		glm::vec3 x[],
 		float mass[],
-		int numNeighbours,
-		int neighbours[],
+		unsigned int numNeighbours,
+		unsigned int neighbours[],
 		float density0,
 		float lambda[],
 		glm::vec3 &corr);
