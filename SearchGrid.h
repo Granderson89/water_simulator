@@ -13,12 +13,14 @@ public:
 
 	void initSearchGrid(const float tankWidth, const float tankDepth, const float tankHeight, 
 		const float numParticles);
-	void updateSearchGrid(Model &model);
-	std::vector<unsigned int> getNeighbours(Model &model, const unsigned int index);
+	void updateSearchGrid(Model &model, ParticleData &particles);
+	std::vector<unsigned int> getNeighbours(const unsigned int index) { return m_neighbours.at(index); };
+	void updateNeighbours(Model &model, ParticleData &particles);
 
 private:
-	std::map<int, std::vector<unsigned int>> m_grid;
+	std::map<std::vector<unsigned int>, std::vector<unsigned int>> m_grid;
 	const float m_gridCellSize;
 	glm::vec3 m_gridMin;
 	float m_numParticles;
+	std::vector<std::vector<unsigned int>> m_neighbours;
 };

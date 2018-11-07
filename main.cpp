@@ -31,32 +31,35 @@
 #include "SearchGrid.h"
 
 void initialiseParticles();
-void boundaryCollisionDetection(ParticleData &particleData);
+void boundaryCollisionDetection(int i, glm::vec3 particle, double xx);
 void createCollisionConstraint(glm::vec3 particle, glm::vec3 ghost, unsigned int index, glm::vec3 collisionNormal);
 
 using namespace std;
 
 Model model;
 // Single water particle properties
-const float radius = 1.0f;
+const float radius = 0.25f;
 const float diam = 2.0f * radius;
 // Volume of water
 const float width = 10.0f;
-const float depth = 10.0f;
-const float height = 5.0f;
-const float restDensity = 0.01f;
+const float depth = 3.0f;
+const float height = 15.0f;
+const float restDensity = 0.5f;
 // Volume of tank
 const float tankWidth = (width + 1) * diam;
 const float tankDepth = (depth + 1) * diam;
-const float tankHeight = 6.0f;
+const float tankHeight = 11.0f;
 // List of collision constraints
 std::vector<BoundaryConstraint*> collisionConstraints;
 
+// Force plane
+glm::vec3 force(-tankWidth / 2.0f - 1.0f, 0.0f, 0.0f);
+
 // Solver iterations
-const unsigned int solverIterations = 4;
+const unsigned int solverIterations = 10;
 
 // Timestep
-const GLfloat dt = 0.1f;
+const GLfloat dt = 0.2f;
 
 // Particle shader
 Shader particleShader;
@@ -75,17 +78,23 @@ int main() {
 	// Create a search grid
 	SearchGrid searchGrid;
 	searchGrid.initSearchGrid(tankWidth, tankDepth, tankHeight, particles.getSize());
-	
+
 	// Game loop
 	while (!glfwWindowShouldClose(app.getWindow())) {
 		/*
 		**	INTERACTION
 		*/
 		// Manage interaction
-		app.doMovement(dt);
+		//app.doMovement(dt);
+		// Get the mouse position
+		double mouse_x;
+		double mouse_y;
+		glfwGetCursorPos(app.getWindow(), &mouse_x, &mouse_y);
+		double xx = 2 * mouse_x / app.SCREEN_WIDTH - 1.0f;
 		/*
 		** POSITION BASED FLUIDS
 		*/
+		collisionConstraints.clear();
 		// Apply forces and predict new position
 		for (unsigned int p = 0; p < particles.getSize(); p++)
 		{
@@ -93,13 +102,14 @@ int main() {
 			particles.getVel(p) += dt * glm::vec3(0.0f, -9.8f, 0.0f);
 			// Predict new position
 			particles.getProj(p) = particles.getPos(p) + dt * particles.getVel(p);
+			boundaryCollisionDetection(p, particles.getProj(p), xx);
 		}
 
 		// Neighbour search
 		// Update the search grid
-		searchGrid.updateSearchGrid(model);
+		searchGrid.updateSearchGrid(model, particles);
 		// Create boundary collision constraints
-		boundaryCollisionDetection(particles);
+		//boundaryCollisionDetection(particles);
 
 		// Solver loop
 		unsigned int iters = 0;
@@ -110,7 +120,7 @@ int main() {
 			for (int p = 0; p < particles.getSize(); p++)
 			{
 				// Get particle p's neighbours
-				std::vector<unsigned int> neighbours = searchGrid.getNeighbours(model, p);
+				std::vector<unsigned int> neighbours = searchGrid.getNeighbours(p);
 				unsigned int numNeighbours = neighbours.size();
 
 				if (numNeighbours > 0)
@@ -127,7 +137,7 @@ int main() {
 			for (int p = 0; p < particles.getSize(); p++)
 			{
 				// Get particle p's neighbours
-				std::vector<unsigned int> neighbours = searchGrid.getNeighbours(model, p);
+				std::vector<unsigned int> neighbours = searchGrid.getNeighbours(p);
 				unsigned int numNeighbours = neighbours.size();
 				// Calculate dp
 				if (numNeighbours > 0)
@@ -204,10 +214,6 @@ void initialiseParticles()
 				int index = i * height * depth + j * depth + k;
 				// Position
 				waterParticles[index] = diam * glm::vec3(i, j, k) + origin;
-				if (j % 2 == 0)
-					waterParticles[index] += glm::vec3(diam / 2.0f, 0.0f, 0.0f);
-				if (k % 2 == 0)
-					waterParticles[index] += glm::vec3(0.0f, 0.0f, diam / 2.0f);
 				// Mesh
 				waterMeshes[index] = Mesh::Mesh();
 				waterMeshes[index].scale(glm::vec3(.1f, .1f, .1f));
@@ -220,12 +226,11 @@ void initialiseParticles()
 }
 
 // Detect all collisions with the boundaries and create a constraint as a response
-void boundaryCollisionDetection(ParticleData &particles)
+void boundaryCollisionDetection(int i, glm::vec3 particle, double xx)
 {
-	collisionConstraints.clear();
-	for (int i = 0; i < model.getParticles().getSize(); i++)
-	{
-		auto particle = particles.getProj(i);
+	//collisionConstraints.clear();
+	//for (int i = 0; i < model.getParticles().getSize(); i++)
+	//{
 		glm::vec3 ghost;
 		if (particle.y < 0.0f)
 		{
@@ -262,7 +267,14 @@ void boundaryCollisionDetection(ParticleData &particles)
 			glm::vec3 collisionNormal(0.0f, 0.0f, -1.0f);
 			createCollisionConstraint(particle, ghost, i, collisionNormal);
 		}
-	}
+		if (particle.x < xx * 3.0f)
+		{
+			// Create 'ghost' particle to act as boundary
+			glm::vec3 ghost(xx, particle.y, particle.z);
+			glm::vec3 collisionNormal(1.0f, 0.0f, 0.0f);
+			createCollisionConstraint(particle, ghost, i, collisionNormal);
+		}
+	//}
 }
 
 // Create a collision constraint, given a particle, it's boundary ghost particle and the boundary normal
@@ -282,6 +294,6 @@ void createCollisionConstraint(glm::vec3 particle, glm::vec3 ghost, unsigned int
 	particles.push_back(p1);
 	particles.push_back(p2);
 	// Create a boundary constraint between water and ghost particle
-	BoundaryConstraint *constraint = new BoundaryConstraint(particles, 1.0f, 0.2f, collisionNormal);
+	BoundaryConstraint *constraint = new BoundaryConstraint(particles, 1.0f, 0.01f, collisionNormal);
 	collisionConstraints.push_back(constraint);
 }

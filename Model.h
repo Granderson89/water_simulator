@@ -25,8 +25,8 @@ public:
 	glm::vec3& getDp(const unsigned int i) { return m_dp.at(i); }
 	void setDp(const unsigned int i, const glm::vec3 &dp) { m_dp.at(i) = dp; }
 
-	int& getCell(const unsigned int i) { return m_cell.at(i); }
-	void setCell(const unsigned int i, const int &cell) { m_cell.at(i) = cell; }
+	std::vector<unsigned int> & getCell(const unsigned int i) { return m_cell.at(i); }
+	void setCell(const unsigned int i, const std::vector<unsigned int>  &cell) { m_cell.at(i) = cell; }
 
 	// Initialise model
 	void initModel(const unsigned int numParticles, glm::vec3* particles, Mesh* meshes, const float restDensity);
@@ -40,5 +40,5 @@ protected:
 	std::vector<float> m_density;
 	std::vector<float> m_lambda;
 	std::vector<glm::vec3> m_dp;
-	std::vector<int> m_cell;
+	std::vector<std::vector<unsigned int>> m_cell;
 };

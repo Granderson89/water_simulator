@@ -133,7 +133,7 @@ int Application::initRender() {
 	glfwSetScrollCallback(m_window, scrollCallback);
 
 	// remove the mouse cursor
-	glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	//glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
 	// moder GLEW approach
 	glewExperimental = GL_TRUE;
