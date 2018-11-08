@@ -1,6 +1,4 @@
 #include "Constraint.h"
-#define _USE_MATH_DEFINES
-#include <math.h>
 
 bool BoundaryConstraint::solveDistanceConstraint(glm::vec3 &corr1) {
 	float sumInvMass = 0;

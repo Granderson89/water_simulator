@@ -1,7 +1,5 @@
 #include "PBFluids.h"
-#include "Kernels.h"
-#include <algorithm>
-#include <iostream>
+
 
 // Calculate the density for particle i
 bool PBFluids::calculateDensity(int particleIndex, int numParticles, glm::vec3 x[], float mass[], unsigned int numNeighbours, unsigned int neighbours[], float density0, float &density)
@@ -11,7 +9,6 @@ bool PBFluids::calculateDensity(int particleIndex, int numParticles, glm::vec3 x
 	for (int j = 0; j < numNeighbours; j++) {
 		int neighbourIndex = neighbours[j];
 		if (neighbourIndex < numParticles) {
-			auto y = x[neighbourIndex];
 			density += Kernels::poly6(x[particleIndex] - x[neighbourIndex], h);
 		}
 	}

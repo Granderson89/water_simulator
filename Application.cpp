@@ -95,7 +95,7 @@ static void mouseCallback(GLFWwindow *window, double xPos, double yPos)
 	Application::lastX = xPos;
 	Application::lastY = yPos;
 
-	Application::camera.ProcessMouseMovement((GLfloat)xOffset, (GLfloat)yOffset);
+	//Application::camera.ProcessMouseMovement((GLfloat)xOffset, (GLfloat)yOffset);
 }
 
 

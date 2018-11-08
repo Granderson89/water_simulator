@@ -3,6 +3,11 @@
 
 // The Model contains information on the properties of the system including:
 //	- water particles present
+//  - the rest density of the water
+//  - The densities at each particle
+//  - The lambda values at each particle
+//  - The position correction for each particle
+//  - The cell occupied by each particle
 
 class Model
 {
@@ -35,10 +40,16 @@ public:
 	void resizeParticleData(const unsigned int size);
 
 protected:
+	// The particles in the model
 	ParticleData m_particles;
+	// Rest density of the water
 	float m_restDensity;
+	// Densities for every particle
 	std::vector<float> m_density;
+	// Lambdas for every particle
 	std::vector<float> m_lambda;
+	// Position corrections for every particle
 	std::vector<glm::vec3> m_dp;
+	// Cell occupied by each particle
 	std::vector<std::vector<unsigned int>> m_cell;
 };

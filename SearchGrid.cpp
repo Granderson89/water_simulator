@@ -1,5 +1,8 @@
 #include "SearchGrid.h"
-#include <omp.h>
+#include <chrono>
+
+using namespace std::chrono;
+
 void SearchGrid::initSearchGrid(const float tankWidth, const float tankDepth, const float tankHeight, const float numParticles)
 {
 	m_gridMin = glm::vec3(-0.5f * tankWidth, 0, -0.5f * tankDepth);
@@ -35,7 +38,6 @@ void SearchGrid::updateSearchGrid(Model &model, ParticleData &particles)
 			}
 		}
 	}
-
 	updateNeighbours(model, particles);
 }
 
@@ -43,14 +45,14 @@ void SearchGrid::updateNeighbours(Model & model, ParticleData & particles)
 {
 	for (int p = 0; p < particles.getSize(); p++)
 	{
+		// Begin a list of neighbours
 		std::vector<unsigned int> neighbours;
-		// Get cell key
+		// Get cell key that this particle occupies
 		std::vector<unsigned int> cell = model.getCell(p);
 		unsigned int cell1 = cell.at(0);
 		unsigned int cell2 = cell.at(1);
 		unsigned int cell3 = cell.at(2);
-		std::vector<unsigned int> occupants = m_grid[cell];
-
+		// Loop over neighbouring cells
 		for (int i = -1; i < 2; i++)
 		{
 			for (int j = -1; j < 2; j++)

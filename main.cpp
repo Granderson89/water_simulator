@@ -65,6 +65,12 @@ const GLfloat dt = 0.2f;
 Shader particleShader;
 
 int main() {
+	std::cout << "DAM BREAK SCENARIO" << std::endl;
+	std::cout << "Volume of water falls into tank" << std::endl;
+	std::cout << "Use cursor to push water from the left" << std::endl;
+	std::cout << "Position cursor at the far left of the screen before starting" << std::endl;
+	std::cout << "Push any button to continue..." << std::endl;
+	cin.get();
 	// Create application
 	Application app = Application::Application();
 	app.initRender();
@@ -75,7 +81,7 @@ int main() {
 	initialiseParticles();
 	ParticleData particles = model.getParticles();
 
-	// Create a search grid
+	// Create a search grid for the neighbour search
 	SearchGrid searchGrid;
 	searchGrid.initSearchGrid(tankWidth, tankDepth, tankHeight, particles.getSize());
 
@@ -85,7 +91,7 @@ int main() {
 		**	INTERACTION
 		*/
 		// Manage interaction
-		//app.doMovement(dt);
+		app.doMovement(dt);
 		// Get the mouse position
 		double mouse_x;
 		double mouse_y;
@@ -94,6 +100,7 @@ int main() {
 		/*
 		** POSITION BASED FLUIDS
 		*/
+		// Clear the collision constraints from the last run
 		collisionConstraints.clear();
 		// Apply forces and predict new position
 		for (unsigned int p = 0; p < particles.getSize(); p++)
@@ -104,13 +111,9 @@ int main() {
 			particles.getProj(p) = particles.getPos(p) + dt * particles.getVel(p);
 			boundaryCollisionDetection(p, particles.getProj(p), xx);
 		}
-
 		// Neighbour search
 		// Update the search grid
 		searchGrid.updateSearchGrid(model, particles);
-		// Create boundary collision constraints
-		//boundaryCollisionDetection(particles);
-
 		// Solver loop
 		unsigned int iters = 0;
 		while (iters < solverIterations)
@@ -228,53 +231,49 @@ void initialiseParticles()
 // Detect all collisions with the boundaries and create a constraint as a response
 void boundaryCollisionDetection(int i, glm::vec3 particle, double xx)
 {
-	//collisionConstraints.clear();
-	//for (int i = 0; i < model.getParticles().getSize(); i++)
-	//{
-		glm::vec3 ghost;
-		if (particle.y < 0.0f)
-		{
-			// Create 'ghost' particle to act as boundary
-			ghost = glm::vec3(particle.x, 0.0f, particle.z);
-			glm::vec3 collisionNormal(0.0f, 1.0f, 0.0f);
-			createCollisionConstraint(particle, ghost, i, collisionNormal);
-		}
-		if (particle.x < -tankWidth / 2.0f)
-		{
-			// Create 'ghost' particle to act as boundary
-			glm::vec3 ghost(-tankWidth / 2.0f, particle.y, particle.z);
-			glm::vec3 collisionNormal(1.0f, 0.0f, 0.0f);
-			createCollisionConstraint(particle, ghost, i, collisionNormal);
-		}
-		else if (particle.x > tankWidth / 2.0f)
-		{
-			// Create 'ghost' particle to act as boundary
-			glm::vec3 ghost(tankWidth / 2.0f, particle.y, particle.z);
-			glm::vec3 collisionNormal(-1.0f, 0.0f, 0.0f);
-			createCollisionConstraint(particle, ghost, i, collisionNormal);
-		}
-		if (particle.z < -tankDepth / 2.0f)
-		{
-			// Create 'ghost' particle to act as boundary
-			glm::vec3 ghost(particle.x, particle.y, -tankDepth / 2.0f);
-			glm::vec3 collisionNormal(0.0f, 0.0f, 1.0f);
-			createCollisionConstraint(particle, ghost, i, collisionNormal);
-		}
-		else if (particle.z > tankDepth / 2.0f)
-		{
-			// Create 'ghost' particle to act as boundary
-			glm::vec3 ghost(particle.x, particle.y, tankDepth / 2.0f);
-			glm::vec3 collisionNormal(0.0f, 0.0f, -1.0f);
-			createCollisionConstraint(particle, ghost, i, collisionNormal);
-		}
-		if (particle.x < xx * 3.0f)
-		{
-			// Create 'ghost' particle to act as boundary
-			glm::vec3 ghost(xx, particle.y, particle.z);
-			glm::vec3 collisionNormal(1.0f, 0.0f, 0.0f);
-			createCollisionConstraint(particle, ghost, i, collisionNormal);
-		}
-	//}
+	glm::vec3 ghost;
+	if (particle.y < 0.0f)
+	{
+		// Create 'ghost' particle to act as boundary
+		ghost = glm::vec3(particle.x, 0.0f, particle.z);
+		glm::vec3 collisionNormal(0.0f, 1.0f, 0.0f);
+		createCollisionConstraint(particle, ghost, i, collisionNormal);
+	}
+	if (particle.x < -tankWidth / 2.0f)
+	{
+		// Create 'ghost' particle to act as boundary
+		glm::vec3 ghost(-tankWidth / 2.0f, particle.y, particle.z);
+		glm::vec3 collisionNormal(1.0f, 0.0f, 0.0f);
+		createCollisionConstraint(particle, ghost, i, collisionNormal);
+	}
+	else if (particle.x > tankWidth / 2.0f)
+	{
+		// Create 'ghost' particle to act as boundary
+		glm::vec3 ghost(tankWidth / 2.0f, particle.y, particle.z);
+		glm::vec3 collisionNormal(-1.0f, 0.0f, 0.0f);
+		createCollisionConstraint(particle, ghost, i, collisionNormal);
+	}
+	if (particle.z < -tankDepth / 2.0f)
+	{
+		// Create 'ghost' particle to act as boundary
+		glm::vec3 ghost(particle.x, particle.y, -tankDepth / 2.0f);
+		glm::vec3 collisionNormal(0.0f, 0.0f, 1.0f);
+		createCollisionConstraint(particle, ghost, i, collisionNormal);
+	}
+	else if (particle.z > tankDepth / 2.0f)
+	{
+		// Create 'ghost' particle to act as boundary
+		glm::vec3 ghost(particle.x, particle.y, tankDepth / 2.0f);
+		glm::vec3 collisionNormal(0.0f, 0.0f, -1.0f);
+		createCollisionConstraint(particle, ghost, i, collisionNormal);
+	}
+	if (particle.x < xx * 5.0f)
+	{
+		// Create 'ghost' particle to act as boundary
+		glm::vec3 ghost(xx, particle.y, particle.z);
+		glm::vec3 collisionNormal(1.0f, 0.0f, 0.0f);
+		createCollisionConstraint(particle, ghost, i, collisionNormal);
+	}
 }
 
 // Create a collision constraint, given a particle, it's boundary ghost particle and the boundary normal

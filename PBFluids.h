@@ -1,6 +1,12 @@
 #pragma once
-#include "glm/glm.hpp"
 #include <vector>
+#include <algorithm>
+#include "glm/glm.hpp"
+#include "Kernels.h"
+
+// PBFluids takes the place of a density constraint.
+// Contains functions to calculate the necessary information to solve
+// a density constraint
 
 class PBFluids {
 public:

@@ -2,6 +2,7 @@
 
 void Model::initModel(const unsigned int numParticles, glm::vec3* particles, Mesh* meshes, const float restDensity)
 {
+	// Set up the particle data
 	resizeParticleData(numParticles);
 	setRestDensity(restDensity);
 	for (int i = 0; i < numParticles; i++)
@@ -10,7 +11,6 @@ void Model::initModel(const unsigned int numParticles, glm::vec3* particles, Mes
 		m_particles.setPos(i, particles[i]);
 		m_particles.setMass(i, 1.0f);
 	}
-	
 }
 
 void Model::resizeParticleData(const unsigned int size)
