@@ -186,6 +186,7 @@
     <ClInclude Include="Camera.h" />
     <ClInclude Include="Constraint.h" />
     <ClInclude Include="Kernels.h" />
+    <ClInclude Include="MarchingCubes.h" />
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="Model.h" />
     <ClInclude Include="ParticleData.h" />

@@ -29,6 +29,7 @@
 #include "PBFluids.h"
 #include "Constraint.h"
 #include "SearchGrid.h"
+#include "MarchingCubes.h"
 
 void initialiseParticles();
 void boundaryCollisionDetection(int i, glm::vec3 particle, double xx);
@@ -70,7 +71,7 @@ int main() {
 	std::cout << "Use cursor to push water from the left" << std::endl;
 	std::cout << "Position cursor at the far left of the screen before starting" << std::endl;
 	std::cout << "Push any button to continue..." << std::endl;
-	cin.get();
+	//cin.get();
 	// Create application
 	Application app = Application::Application();
 	app.initRender();
@@ -84,6 +85,10 @@ int main() {
 	// Create a search grid for the neighbour search
 	SearchGrid searchGrid;
 	searchGrid.initSearchGrid(tankWidth, tankDepth, tankHeight, particles.getSize());
+
+	MarchingCubes mC;
+	mC.setOrigin(glm::vec3(-0.5f * tankWidth + diam - 3.0f, diam - 3.0f, -0.5f * tankDepth + diam - 3.0f));
+	mC.initMCGrid();
 
 	// Game loop
 	while (!glfwWindowShouldClose(app.getWindow())) {
@@ -114,6 +119,8 @@ int main() {
 		// Neighbour search
 		// Update the search grid
 		searchGrid.updateSearchGrid(model, particles);
+		mC.updateMCNeighbours(model, particles, searchGrid.getGrid());
+		mC.updateScalarValues(&particles.getProj(0));
 		// Solver loop
 		unsigned int iters = 0;
 		while (iters < solverIterations)
@@ -184,6 +191,49 @@ int main() {
 		*/
 		// clear buffer
 		app.clear();
+		MarchingCubes::GRIDCELL cell = mC.getCells().at(0);
+		std::cout << "Cell positions" << std::endl;
+		std::cout << "(" << cell.p[0].x << ", " << cell.p[0].y << ", " << cell.p[0].z << ")";
+		std::cout << cell.val[0] << std::endl;
+		std::cout << "(" << cell.p[1].x << ", " << cell.p[1].y << ", " << cell.p[1].z << ")";
+		std::cout << cell.val[1] << std::endl;
+		std::cout << "(" << cell.p[2].x << ", " << cell.p[2].y << ", " << cell.p[2].z << ")";
+		std::cout << cell.val[2] << std::endl;
+		std::cout << "(" << cell.p[3].x << ", " << cell.p[3].y << ", " << cell.p[3].z << ")";
+		std::cout << cell.val[3] << std::endl;
+		std::cout << "(" << cell.p[4].x << ", " << cell.p[4].y << ", " << cell.p[4].z << ")";
+		std::cout << cell.val[4] << std::endl;
+		std::cout << "(" << cell.p[5].x << ", " << cell.p[5].y << ", " << cell.p[5].z << ")";
+		std::cout << cell.val[5] << std::endl;
+		std::cout << "(" << cell.p[6].x << ", " << cell.p[6].y << ", " << cell.p[6].z << ")";
+		std::cout << cell.val[6] << std::endl;
+		std::cout << "(" << cell.p[7].x << ", " << cell.p[7].y << ", " << cell.p[7].z << ")";
+		std::cout << cell.val[7] << std::endl;
+	
+		vector<MarchingCubes::TRIANGLE> triangles;
+		mC.Polygonise(cell, 4.0f, triangles);
+		std::cout << "TRIANGLES" << std::endl;
+		for (int i = 0; i < triangles.size(); i++)
+		{
+			std::cout << "(" << triangles.at(i).p[0].x << ", " << triangles.at(i).p[0].y << ", " << triangles.at(i).p[0].z << ")" << std::endl;
+			std::cout << "(" << triangles.at(i).p[1].x << ", " << triangles.at(i).p[1].y << ", " << triangles.at(i).p[1].z << ")" << std::endl;
+			std::cout << "(" << triangles.at(i).p[2].x << ", " << triangles.at(i).p[2].y << ", " << triangles.at(i).p[2].z << ")" << std::endl;
+		}
+		if (triangles.size() != 0)
+		{
+			Vertex vertices[] = {
+			Vertex(triangles.at(0).p[0]),
+			Vertex(triangles.at(0).p[1]),
+			Vertex(triangles.at(0).p[2]),
+			Vertex(triangles.at(1).p[0]),
+			Vertex(triangles.at(1).p[1]),
+			Vertex(triangles.at(1).p[2])
+			};
+
+			Mesh surface = Mesh::Mesh();
+			surface.initMesh(vertices, sizeof(vertices) / sizeof(vertices[0]));
+			app.draw(surface);
+		}
 		// draw particles
 		for (int i = 0; i < particles.getSize(); i++)
 		{
@@ -240,6 +290,7 @@ void boundaryCollisionDetection(int i, glm::vec3 particle, double xx)
 		createCollisionConstraint(particle, ghost, i, collisionNormal);
 	}
 	if (particle.x < -tankWidth / 2.0f)
+	//if (particle.x < 0.0f)
 	{
 		// Create 'ghost' particle to act as boundary
 		glm::vec3 ghost(-tankWidth / 2.0f, particle.y, particle.z);
@@ -267,13 +318,13 @@ void boundaryCollisionDetection(int i, glm::vec3 particle, double xx)
 		glm::vec3 collisionNormal(0.0f, 0.0f, -1.0f);
 		createCollisionConstraint(particle, ghost, i, collisionNormal);
 	}
-	if (particle.x < xx * 5.0f)
-	{
-		// Create 'ghost' particle to act as boundary
-		glm::vec3 ghost(xx, particle.y, particle.z);
-		glm::vec3 collisionNormal(1.0f, 0.0f, 0.0f);
-		createCollisionConstraint(particle, ghost, i, collisionNormal);
-	}
+	//if (particle.x < xx * 5.0f)
+	//{
+	//	// Create 'ghost' particle to act as boundary
+	//	glm::vec3 ghost(xx, particle.y, particle.z);
+	//	glm::vec3 collisionNormal(1.0f, 0.0f, 0.0f);
+	//	createCollisionConstraint(particle, ghost, i, collisionNormal);
+	//}
 }
 
 // Create a collision constraint, given a particle, it's boundary ghost particle and the boundary normal

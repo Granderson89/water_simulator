@@ -79,5 +79,8 @@
     <ClInclude Include="SearchGrid.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="MarchingCubes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

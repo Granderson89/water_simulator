@@ -15,6 +15,8 @@ public:
 	Vertex(const glm::vec3& coord) {
 		this->coord = coord;
 	}
+
+	glm::vec3 getCoord() { return coord; }
 protected:
 private:
 	glm::vec3 coord;
