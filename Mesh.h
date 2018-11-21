@@ -16,7 +16,6 @@ public:
 		this->coord = coord;
 	}
 
-	glm::vec3 getCoord() { return coord; }
 protected:
 private:
 	glm::vec3 coord;
@@ -83,6 +82,7 @@ public:
 	void initTransform();
 	// create mesh from vertices
 	void initMesh(Vertex* vertices, unsigned int numVertices);
+
 
 	/*
 	** TRANSFORMATION METHODS

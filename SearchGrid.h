@@ -26,6 +26,7 @@ public:
 	std::vector<unsigned int> getNeighbours(const unsigned int index) { return m_neighbours.at(index); };
 	void updateNeighbours(Model &model, ParticleData &particles);
 	std::map<std::vector<unsigned int>, std::vector<unsigned int>> getGrid() { return m_grid; }
+	const float getGridCellSize() { return m_gridCellSize; }
 
 private:
 	// Map of cell (row, column, depth) to occupants (list of particle indices)

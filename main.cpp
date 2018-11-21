@@ -68,8 +68,9 @@ Shader particleShader;
 int main() {
 	std::cout << "DAM BREAK SCENARIO" << std::endl;
 	std::cout << "Volume of water falls into tank" << std::endl;
-	std::cout << "Use cursor to push water from the left" << std::endl;
+	/*std::cout << "Use cursor to push water from the left" << std::endl;
 	std::cout << "Position cursor at the far left of the screen before starting" << std::endl;
+	*/
 	std::cout << "Push any button to continue..." << std::endl;
 	//cin.get();
 	// Create application
@@ -119,7 +120,7 @@ int main() {
 		// Neighbour search
 		// Update the search grid
 		searchGrid.updateSearchGrid(model, particles);
-		mC.updateMCNeighbours(model, particles, searchGrid.getGrid());
+		mC.updateMCNeighbours(model, particles, searchGrid.getGrid(), searchGrid.getGridCellSize());
 		mC.updateScalarValues(&particles.getProj(0));
 		// Solver loop
 		unsigned int iters = 0;
@@ -191,54 +192,32 @@ int main() {
 		*/
 		// clear buffer
 		app.clear();
-		MarchingCubes::GRIDCELL cell = mC.getCells().at(0);
-		std::cout << "Cell positions" << std::endl;
-		std::cout << "(" << cell.p[0].x << ", " << cell.p[0].y << ", " << cell.p[0].z << ")";
-		std::cout << cell.val[0] << std::endl;
-		std::cout << "(" << cell.p[1].x << ", " << cell.p[1].y << ", " << cell.p[1].z << ")";
-		std::cout << cell.val[1] << std::endl;
-		std::cout << "(" << cell.p[2].x << ", " << cell.p[2].y << ", " << cell.p[2].z << ")";
-		std::cout << cell.val[2] << std::endl;
-		std::cout << "(" << cell.p[3].x << ", " << cell.p[3].y << ", " << cell.p[3].z << ")";
-		std::cout << cell.val[3] << std::endl;
-		std::cout << "(" << cell.p[4].x << ", " << cell.p[4].y << ", " << cell.p[4].z << ")";
-		std::cout << cell.val[4] << std::endl;
-		std::cout << "(" << cell.p[5].x << ", " << cell.p[5].y << ", " << cell.p[5].z << ")";
-		std::cout << cell.val[5] << std::endl;
-		std::cout << "(" << cell.p[6].x << ", " << cell.p[6].y << ", " << cell.p[6].z << ")";
-		std::cout << cell.val[6] << std::endl;
-		std::cout << "(" << cell.p[7].x << ", " << cell.p[7].y << ", " << cell.p[7].z << ")";
-		std::cout << cell.val[7] << std::endl;
-	
+		// MARCHING CUBES
+		// Generate a list of triangles
 		vector<MarchingCubes::TRIANGLE> triangles;
-		mC.Polygonise(cell, 4.0f, triangles);
-		std::cout << "TRIANGLES" << std::endl;
-		for (int i = 0; i < triangles.size(); i++)
-		{
-			std::cout << "(" << triangles.at(i).p[0].x << ", " << triangles.at(i).p[0].y << ", " << triangles.at(i).p[0].z << ")" << std::endl;
-			std::cout << "(" << triangles.at(i).p[1].x << ", " << triangles.at(i).p[1].y << ", " << triangles.at(i).p[1].z << ")" << std::endl;
-			std::cout << "(" << triangles.at(i).p[2].x << ", " << triangles.at(i).p[2].y << ", " << triangles.at(i).p[2].z << ")" << std::endl;
-		}
+		for (MarchingCubes::GRIDCELL &cell : mC.getCells())
+			mC.polygonise(cell, triangles);
 		if (triangles.size() != 0)
 		{
-			Vertex vertices[] = {
-			Vertex(triangles.at(0).p[0]),
-			Vertex(triangles.at(0).p[1]),
-			Vertex(triangles.at(0).p[2]),
-			Vertex(triangles.at(1).p[0]),
-			Vertex(triangles.at(1).p[1]),
-			Vertex(triangles.at(1).p[2])
-			};
-
+			// Convert to a list of vertices
+			vector<Vertex> vertices;
+			for (MarchingCubes::TRIANGLE t : triangles)
+			{
+				vertices.push_back(t.p[0]);
+				vertices.push_back(t.p[1]);
+				vertices.push_back(t.p[2]);
+			}
+			// Create the surface mesh from the vertices and draw
 			Mesh surface = Mesh::Mesh();
-			surface.initMesh(vertices, sizeof(vertices) / sizeof(vertices[0]));
+			surface.initMesh(&vertices.at(0), vertices.size());
+			surface.setShader(particleShader);
 			app.draw(surface);
 		}
 		// draw particles
-		for (int i = 0; i < particles.getSize(); i++)
+		/*for (int i = 0; i < particles.getSize(); i++)
 		{
 			app.draw(particles.getMesh(i));
-		}
+		}*/
 		app.display();
 	}
 
