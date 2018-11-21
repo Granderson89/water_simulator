@@ -89,7 +89,7 @@ int main() {
 
 	MarchingCubes mC;
 	mC.setOrigin(glm::vec3(-0.5f * tankWidth + diam - 3.0f, diam - 3.0f, -0.5f * tankDepth + diam - 3.0f));
-	mC.initMCGrid();
+	mC.initMCGrid(tankWidth, tankDepth, tankHeight);
 
 	// Game loop
 	while (!glfwWindowShouldClose(app.getWindow())) {

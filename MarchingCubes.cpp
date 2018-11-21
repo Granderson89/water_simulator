@@ -1,14 +1,14 @@
 #include "MarchingCubes.h"
 
 // Initialise the Marching Cubes grid
-void MarchingCubes::initMCGrid()
+void MarchingCubes::initMCGrid(const float tankWidth, const float tankBreadth, const float tankHeight)
 {
 	// Set the cell size
-	m_cellSize = 3.0f;
+	m_cellSize = 2.0f;
 	// Set MC grid dimensions
-	unsigned int width = 5;
-	unsigned int height = 6;
-	unsigned int breadth = 3;
+	unsigned int width = tankWidth * 2 / m_cellSize + 1;
+	unsigned int height = tankHeight / m_cellSize + 1;
+	unsigned int breadth = tankBreadth * 3 / m_cellSize + 1;
 	// Create GRIDCELLs and set positions
 	for (int i = 0; i < width; i++)
 		for (int j = 0; j < height; j++)
@@ -68,7 +68,7 @@ void MarchingCubes::updateMCNeighbours(Model & model, ParticleData & particles, 
 							{
 								// If occupant is close enough, add to the list of neighbours
 								float distance = glm::length(cell.p[vertex] - particles.getProj(occupants.at(n)));
-								if (distance < 5.0f)
+								if (distance < 2.0f)
 									neighbours.push_back(occupants.at(n));
 
 							}
@@ -95,7 +95,7 @@ void MarchingCubes::updateScalarValues(glm::vec3 x[])
 		{
 			float scalarFieldValue = 0.0f;
 			// Smoothing kernel radius
-			float h = 2.0f;
+			float h = 1.0f;
 			// Accumulate value for every neighbour of this vertex
 			for (int neighbour = 0; neighbour < m_neighbours.at(cellNumber).at(vertex).size(); neighbour++)
 			{

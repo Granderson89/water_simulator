@@ -41,7 +41,7 @@ public:
 	~MarchingCubes() {}
 
 	// Initialise the grid
-	void initMCGrid();
+	void initMCGrid(const float tankWidth, const float tankBreadth, const float tankHeight);
 
 	// Update the neighbours of each vertex in every cell of the grid
 	void updateMCNeighbours(Model & model, ParticleData & particles, std::map<std::vector<unsigned int>, std::vector<unsigned int>> &searchGrid, float searchGridCellSize);
