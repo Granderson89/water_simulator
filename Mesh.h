@@ -15,6 +15,8 @@ public:
 	Vertex(const glm::vec3& coord) {
 		this->coord = coord;
 	}
+	glm::vec3 getCoord() const { return this->coord; }
+
 
 protected:
 private:
@@ -57,6 +59,7 @@ public:
 	Shader getShader() const { return m_shader; }
 	GLuint getVertexArrayObject() const{ return m_vertexArrayObject; }
 	unsigned int getNumIndices() const{ return m_numIndices; }
+	std::vector<Vertex> getVertices() { return m_vertices; }
 
 	// set position of mesh center to specified 3D position vector
 	void setPos(const glm::vec3 &position) {
@@ -66,6 +69,9 @@ public:
 	}
 	// set i_th coordinate of mesh center to float p (x: i=0, y: i=1, z: i=2)
 	void setPos(int i, float p) { m_translate[3][i] = p; }
+
+	// set rotate matrix
+	void setRotate(glm::mat4 r) { m_rotate = r; }
 
 	// allocate shader to mesh
 	void setShader(const Shader &shader) {
@@ -110,6 +116,8 @@ private:
 	glm::mat4 m_scale;
 
 	Shader m_shader;
+
+	std::vector<Vertex> m_vertices;
 };
 
 
