@@ -31,6 +31,8 @@
 #include "SearchGrid.h"
 #include "MarchingCubes.h"
 
+#define _PARTICLES
+
 void initialiseParticles();
 void boundaryCollisionDetection(int i, glm::vec3 particle, double xx);
 void createCollisionConstraint(glm::vec3 particle, glm::vec3 ghost, unsigned int index, glm::vec3 collisionNormal);
@@ -192,6 +194,13 @@ int main() {
 		*/
 		// clear buffer
 		app.clear();
+#ifdef _PARTICLES
+		// draw particles
+		for (int i = 0; i < particles.getSize(); i++)
+		{
+			app.draw(particles.getMesh(i));
+		}
+#else
 		// MARCHING CUBES
 		// Generate a list of triangles
 		vector<MarchingCubes::TRIANGLE> triangles;
@@ -213,11 +222,7 @@ int main() {
 			surface.setShader(particleShader);
 			app.draw(surface);
 		}
-		// draw particles
-		/*for (int i = 0; i < particles.getSize(); i++)
-		{
-			app.draw(particles.getMesh(i));
-		}*/
+#endif
 		app.display();
 	}
 
