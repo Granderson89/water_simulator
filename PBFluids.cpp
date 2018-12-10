@@ -8,6 +8,7 @@ bool PBFluids::calculateDensity(int particleIndex, int numParticles, glm::vec3 x
 	float h = 2.0f;
 	for (int j = 0; j < numNeighbours; j++) {
 		int neighbourIndex = neighbours[j];
+		// Check if it is a particle
 		if (neighbourIndex < numParticles) {
 			density += Kernels::poly6(x[particleIndex] - x[neighbourIndex], h);
 		}
@@ -35,9 +36,13 @@ bool PBFluids::calculateLambda(int particleIndex, int numParticles, glm::vec3 x[
 
 		for (int j = 0; j < numNeighbours; j++) {
 			int neighbourIndex = neighbours[j];
-			glm::vec3 gradC_j = -1.0f / density0 * Kernels::spiky_grad_vec(x[particleIndex] - x[neighbourIndex], h);
-			sum_grad_c += pow(gradC_j.length(), 2);
-			gradC_i -= gradC_j;
+			// Check if it is a particle
+			if (neighbourIndex < numParticles) 
+			{
+				glm::vec3 gradC_j = -1.0f / density0 * Kernels::spiky_grad_vec(x[particleIndex] - x[neighbourIndex], h);
+				sum_grad_c += pow(gradC_j.length(), 2);
+				gradC_i -= gradC_j;
+			}
 		}
 
 		sum_grad_c += pow(gradC_i.length(), 2);
@@ -57,8 +62,12 @@ bool PBFluids::solveDensityConstraint(int particleIndex, int numParticles, glm::
 	corr = glm::vec3(0.0f);
 	for (int j = 0; j < numNeighbours; j++) {
 		int neighbourIndex = neighbours[j];
-		glm::vec3 gradC_j = -mass[neighbourIndex] / density0 * Kernels::spiky_grad_vec(x[particleIndex] - x[neighbourIndex], h);
-		corr -= (lambda[particleIndex] + lambda[neighbourIndex]) * gradC_j;
+		// Check if it is a particle
+		if (neighbourIndex < numParticles)
+		{
+			glm::vec3 gradC_j = -mass[neighbourIndex] / density0 * Kernels::spiky_grad_vec(x[particleIndex] - x[neighbourIndex], h);
+			corr -= (lambda[particleIndex] + lambda[neighbourIndex]) * gradC_j;
+		}
 	}
 
 	return true;

@@ -66,6 +66,9 @@ void MarchingCubes::updateMCNeighbours(Model & model, ParticleData & particles, 
 							std::vector<unsigned int> occupants = searchGrid[neighbourCell];
 							for (int n = 0; n < occupants.size(); n++)
 							{
+								// Only include particles
+								if (occupants.at(n) >= particles.getSize())
+									continue;
 								// If occupant is close enough, add to the list of neighbours
 								float distance = glm::length(cell.p[vertex] - particles.getProj(occupants.at(n)));
 								if (distance < 2.0f)

@@ -7,20 +7,22 @@
 #include <vector>
 #include "Shader.h"
 
-/* 
-** VERTEX CLASS 
+/*
+** VERTEX CLASS
 */
 class Vertex {
 public:
-	Vertex(const glm::vec3& coord) {
-		this->coord = coord;
+	Vertex() {
+		m_coord = glm::vec3();
 	}
-	glm::vec3 getCoord() const { return this->coord; }
 
+	Vertex(const glm::vec3& coord) {
+		m_coord = coord;
+	}
+	glm::vec3 getCoord() const { return m_coord; }
 
-protected:
 private:
-	glm::vec3 coord;
+	glm::vec3 m_coord;
 };
 
 enum MeshBufferPositions
@@ -37,12 +39,20 @@ enum MeshBufferPositions
 class Mesh
 {
 public:
+	enum MeshType
+	{
+		TRIANGLE,
+		QUAD,
+		CUBE
+	};
 	/*
 	** CONSTRUCTORS
 	*/
 
 	// default constructor creates a horizontal plane or dimensions 1 x 1 centered on the origin
 	Mesh();
+	// construct a mesh from a type
+	Mesh(MeshType type);
 	virtual ~Mesh();
 
 

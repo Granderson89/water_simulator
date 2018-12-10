@@ -19,6 +19,8 @@ RigidBody::RigidBody()
 	setCor(1.0f);
 
 	m_invInertia = updateInvInertia();
+
+	m_obb = new OBB();
 }
 
 
@@ -36,7 +38,7 @@ glm::mat3 RigidBody::updateInvInertia()
 	float d = getScale()[2][2] * 2.0f;
 	// Mass
 	float m = getMass();
-	
+
 	// Inertia x
 	float Ix = 1.0f / 12.0f * m * (pow(h, 2) + pow(d, 2));
 	// Inertia y
@@ -61,18 +63,31 @@ void RigidBody::setMass(float mass)
 	setInvInertia(updateInvInertia());
 }
 
-// torques
-// sum of all torques applied to a body and return angular acceleration
-glm::vec3 RigidBody::applyTorques(glm::vec3 x, glm::vec3 v, float t, float dt)
+void RigidBody::updateObb()
 {
-	glm::vec3 tAccumulator = glm::vec3(0.0f);
-
-	for (auto &f : getForces())
-	{
-		for each (Vertex vert in getMesh().getVertices())
-		{
-			tAccumulator += glm::cross(vert.getCoord(), f->apply(getMass(), x, v));
-		}
-	}
-	return tAccumulator * getInvInertia();
+	m_obb->c = getPos();
+	m_obb->u[0] = glm::normalize(glm::vec3(getMesh().getRotate()[0]));
+	m_obb->u[1] = glm::normalize(glm::vec3(getMesh().getRotate()[1]));
+	m_obb->u[2] = glm::normalize(glm::vec3(getMesh().getRotate()[2]));
+	m_obb->e[0] = getScale()[0][0];
+	m_obb->e[1] = getScale()[1][1];
+	m_obb->e[2] = getScale()[2][2];
 }
+
+void RigidBody::sleepTest()
+{
+	if (m_canSleep == false)
+		return;
+
+	auto motion = glm::dot(getVel(), getVel()) +
+		glm::dot(getAngVel(), getAngVel());
+	if (motion < getMotionThreshold())
+	{
+		setIsAwake(false);
+	}
+	else
+	{
+		setIsAwake(true);
+	}
+}
+

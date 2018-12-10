@@ -4,6 +4,12 @@
 #include "glm/glm.hpp"
 #include "Model.h"
 #include "ParticleData.h"
+#include "RigidBody.h"
+#include <vector>
+
+#include <chrono>
+
+using namespace std::chrono;
 
 // SearchGrid splits space into 3D cells and groups particles who occupy
 // the same cell.
@@ -14,6 +20,8 @@
 //  - The number of particles in the model
 //  - List of neighbours for each particle
 
+using namespace std;
+
 class SearchGrid
 {
 public:
@@ -22,9 +30,9 @@ public:
 
 	void initSearchGrid(const float tankWidth, const float tankDepth, const float tankHeight, 
 		const float numParticles);
-	void updateSearchGrid(Model &model, ParticleData &particles);
+	void updateSearchGrid(Model &model, ParticleData &particles, vector<RigidBody> rigidBodies);
 	std::vector<unsigned int> getNeighbours(const unsigned int index) { return m_neighbours.at(index); };
-	void updateNeighbours(Model &model, ParticleData &particles);
+	void updateNeighbours(Model &model, ParticleData &particles, vector<RigidBody> rigidBodies);
 	std::map<std::vector<unsigned int>, std::vector<unsigned int>> getGrid() { return m_grid; }
 	const float getGridCellSize() { return m_gridCellSize; }
 
