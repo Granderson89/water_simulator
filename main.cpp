@@ -35,7 +35,7 @@
 #define _PARTICLES
 
 void initialiseParticles();
-void boundaryCollisionDetection(int i, glm::vec3 particle, double xx);
+void boundaryCollisionDetection(int i, glm::vec3 particle);
 void createCollisionConstraint(glm::vec3 particle, glm::vec3 ghost, unsigned int index, glm::vec3 collisionNormal);
 void ClosestPtPointOBB(glm::vec3 p, OBB b, glm::vec3 &q);
 void rigidBodyCollisionDetection(int i, glm::vec3 particle, RigidBody rigidBody);
@@ -47,8 +47,8 @@ Model model;
 const float radius = 0.25f;
 const float diam = 2.0f * radius;
 // Volume of water
-const float width = 8.0f;
-const float depth = 3.0f;
+const float width = 10.0f;
+const float depth = 2.0f;
 const float height = 15.0f;
 const unsigned int num_particles = width * depth * height;
 const float restDensity = 0.5f;
@@ -102,6 +102,10 @@ int main() {
 	rb.setPos(glm::vec3(0.0f, 0.0f, 0.0f));
 	rb.updateObb();
 	rigidBodies.push_back(rb);
+	std::cout << "Half widths of obb: ("
+		<< rb.getObb().e[0] << ", "
+		<< rb.getObb().e[1] << ", "
+		<< rb.getObb().e[2] << ")" << std::endl;
 
 	// Create a search grid for the neighbour search
 	SearchGrid searchGrid;
@@ -118,7 +122,6 @@ int main() {
 
 	// Game loop
 	while (!glfwWindowShouldClose(app.getWindow())) {
-		rb.updateObb();
 		/*
 		**	INTERACTION
 		*/
@@ -129,12 +132,10 @@ int main() {
 		double mouse_y;
 		glfwGetCursorPos(app.getWindow(), &mouse_x, &mouse_y);
 		double xx = 2 * mouse_x / app.SCREEN_WIDTH - 1.0f;
-		rb.setPos(0, xx);
+		rb.setPos(0, 5* xx);
 		/*
 		** POSITION BASED FLUIDS
 		*/
-		// Clear the collision constraints from the last run
-		collisionConstraints.clear();
 		// Apply forces and predict new position
 		for (unsigned int p = 0; p < particles.getSize(); p++)
 		{
@@ -142,7 +143,6 @@ int main() {
 			particles.getVel(p) += dt * glm::vec3(0.0f, -9.8f, 0.0f);
 			// Predict new position
 			particles.getProj(p) = particles.getPos(p) + dt * particles.getVel(p);
-			boundaryCollisionDetection(p, particles.getProj(p), xx);
 		}
 		// Neighbour search
 		// Update the search grid
@@ -150,21 +150,29 @@ int main() {
 		mC.updateMCNeighbours(model, particles, searchGrid.getGrid(), searchGrid.getGridCellSize());
 		mC.updateScalarValues(&particles.getProj(0));
 
+		rb.updateObb();
+		// Clear the collision constraints from the last run
+		collisionConstraints.clear();
 		// Create rigid body collision constraints
 		for (unsigned int p = 0; p < particles.getSize(); p++)
 		{
-			vector<unsigned int> neighbours = searchGrid.getNeighbours(p);
+			boundaryCollisionDetection(p, particles.getProj(p));
+			rigidBodyCollisionDetection(p, particles.getProj(p), rigidBodies.at(0));
+
+			/*vector<unsigned int> neighbours = searchGrid.getNeighbours(p);
 			for (unsigned int n = 0; n < neighbours.size(); n++)
 			{
-				if (n < num_particles)
+				if (neighbours.at(n) < num_particles)
 					continue;
 				rigidBodyCollisionDetection(p, particles.getProj(p), rigidBodies.at(0));
-			}
+				break;
+			}*/
 		}
 		// Solver loop
 		unsigned int iters = 0;
 		while (iters < solverIterations)
 		{	
+			
 			// DENSITY CONSTRAINT
 			// Calculate lambda
 			for (int p = 0; p < particles.getSize(); p++)
@@ -329,7 +337,7 @@ void initialiseParticles()
 }
 
 // Detect all collisions with the boundaries and create a constraint as a response
-void boundaryCollisionDetection(int i, glm::vec3 particle, double xx)
+void boundaryCollisionDetection(int i, glm::vec3 particle)
 {
 	glm::vec3 ghost;
 	if (particle.y < 0.0f)
@@ -368,13 +376,6 @@ void boundaryCollisionDetection(int i, glm::vec3 particle, double xx)
 		glm::vec3 collisionNormal(0.0f, 0.0f, -1.0f);
 		createCollisionConstraint(particle, ghost, i, collisionNormal);
 	}
-	//if (particle.x < xx * 5.0f)
-	//{
-	//	// Create 'ghost' particle to act as boundary
-	//	glm::vec3 ghost(xx, particle.y, particle.z);
-	//	glm::vec3 collisionNormal(1.0f, 0.0f, 0.0f);
-	//	createCollisionConstraint(particle, ghost, i, collisionNormal);
-	//}
 }
 
 // Detect all collisions with the rigid body and create a constraint as a response
@@ -383,19 +384,50 @@ void rigidBodyCollisionDetection(int i, glm::vec3 particle, RigidBody rigidBody)
 	// Get closest point on the rigidbody to the particle to act as a ghost particle
 	// in a collision constraint
 	glm::vec3 ghost;
-	ClosestPtPointOBB(particle, rigidBody.getObb(), ghost);
-	// If particle is close enough, create a collision constraint
-	if (glm::length(ghost - particle) < 0.1f)
-	{
-		std::cout << "Particle at: (" << particle.x << ", " << particle.y << ", " << particle.z << ")" << std::endl;
-		std::cout << "Ghost    at: (" << ghost.x << ", " << ghost.y << ", " << ghost.z << ")" << std::endl;
-
-		// Calculate collision normal
-		glm::vec3 collisionNormal;
-		std::cout << "Collision detected" << std::endl;
-		// Create the constraint
-		//createCollisionConstraint(particle, ghost, i, collisionNormal);
-	}
+	auto obb = rigidBody.getObb();
+	ClosestPtPointOBB(particle, obb, ghost);
+	// Transform ghost to local space
+	ghost = glm::vec4(ghost, 1.0f) * glm::inverse(rigidBody.getMesh().getModel());
+	std::cout << "Local coord: ("
+		<< ghost.x << ", "
+		<< ghost.y << ", "
+		<< ghost.z << ")" << std::endl;
+	//// If particle is close enough, create a collision constraint
+	//if (abs(glm::length(ghost - particle)) < 0.01f)
+	//{
+	//	// Calculate collision normal
+	//	glm::vec3 collisionNormal;
+	//	// For each axis of obb...
+	//	for (int i = 0; i < 3; i++)
+	//	{
+	//		for (int j = -1; j < 2; j += 2)
+	//		{
+	//			// Translate axis to world space
+	//			glm::vec3 axis = rigidBody.getMesh().getModel() * glm::vec4(j * obb.u[i], 1.0f);
+	//			axis = glm::normalize(axis);
+	//			// Translate the ghost along the axis
+	//			glm::vec3 translated_ghost = ghost + axis;
+	//			// Get closest point on OBB to translated point
+	//			glm::vec3 closest;
+	//			ClosestPtPointOBB(translated_ghost, obb, closest);
+	//			if (closest == ghost)
+	//			{
+	//				collisionNormal = axis;
+	//				std::cout << "Collision Normal = ("
+	//					<< collisionNormal.x << ", "
+	//					<< collisionNormal.y << ", "
+	//					<< collisionNormal.z << ")" << std::endl;
+	//				break;
+	//			}
+	//		}
+	//		if (collisionNormal != glm::vec3(0.0f))
+	//			break;
+	//	}
+	//	ghost = particle;
+	//	collisionNormal = glm::vec3(1.0f, 0.0f, 0.0f);
+	//	// Create the constraint
+	//	createCollisionConstraint(particle, ghost, i, collisionNormal);
+	//}
 }
 
 // Create a collision constraint, given a particle, it's boundary ghost particle and the boundary normal
@@ -415,7 +447,7 @@ void createCollisionConstraint(glm::vec3 particle, glm::vec3 ghost, unsigned int
 	particles.push_back(p1);
 	particles.push_back(p2);
 	// Create a boundary constraint between water and ghost particle
-	BoundaryConstraint *constraint = new BoundaryConstraint(particles, 1.0f, 0.01f, collisionNormal);
+	BoundaryConstraint *constraint = new BoundaryConstraint(particles, 1.0f, 0.1f, collisionNormal);
 	collisionConstraints.push_back(constraint);
 }
 
