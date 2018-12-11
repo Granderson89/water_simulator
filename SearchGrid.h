@@ -4,7 +4,6 @@
 #include "glm/glm.hpp"
 #include "Model.h"
 #include "ParticleData.h"
-#include "RigidBody.h"
 #include <vector>
 
 #include <chrono>
@@ -30,9 +29,9 @@ public:
 
 	void initSearchGrid(const float tankWidth, const float tankDepth, const float tankHeight, 
 		const float numParticles);
-	void updateSearchGrid(Model &model, ParticleData &particles, vector<RigidBody> rigidBodies);
+	void updateSearchGrid(Model &model, ParticleData &particles);
 	std::vector<unsigned int> getNeighbours(const unsigned int index) { return m_neighbours.at(index); };
-	void updateNeighbours(Model &model, ParticleData &particles, vector<RigidBody> rigidBodies);
+	void updateNeighbours(Model &model, ParticleData &particles);
 	std::map<std::vector<unsigned int>, std::vector<unsigned int>> getGrid() { return m_grid; }
 	const float getGridCellSize() { return m_gridCellSize; }
 

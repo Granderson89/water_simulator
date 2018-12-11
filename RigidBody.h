@@ -8,6 +8,11 @@ struct OBB {
 	float e[3]; // Positive halfwidth extents of OBB along each axis
 };
 
+struct Plane {
+	glm::vec3 n; // Plane normal. Point X on the plane satisfies Dot(n, X) = d
+	float d;  // d = dot(n, p) for a given point on the plane
+};
+
 class RigidBody :
 	public Body
 {
@@ -20,27 +25,22 @@ public:
 	void setAngAcc(const glm::vec3 &alpha) { m_angAcc = alpha; }
 	void setMass(float mass);
 	void setInvInertia(const glm::mat3 &invInertia) { m_invInertia = invInertia; }
-	void setIsAwake(bool isAwake) { m_isAwake = isAwake; }
-	void setMotionThreshold(float motionThreshold) { m_motionThreshold = motionThreshold; }
-	void setCanSleep(bool canSleep) { m_canSleep = canSleep; }
 
 	glm::vec3 getAngVel() { return m_angVel; }
 	glm::vec3 getAngAcc() { return m_angAcc; }
 	glm::mat3 getInvInertia() { return m_invInertia; };
 	OBB getObb() { return *m_obb; }
 	std::vector<int> getCells() { return m_cells; }
-	bool getIsAwake() { return m_isAwake; }
-	float getMotionThreshold() { return m_motionThreshold; }
-	std::vector<RigidBody*> getTested() { return m_tested; }
+	std::vector<Plane> getPlanes() { return m_planes; }
 
 	void scale(glm::vec3 vect);
 	void addCell(int cell) { m_cells.push_back(cell); }
 	void clearCells() { m_cells.clear(); }
-	void addTested(RigidBody* rb) { m_tested.push_back(rb); }
-	void clearTested() { m_tested.clear(); }
 	glm::mat3 updateInvInertia();
 	void updateObb();
-	void sleepTest();
+
+	void updatePlanes();
+	Plane computePlane(glm::vec3 a, glm::vec3 b, glm::vec3 c);
 
 private:
 	float m_density;
@@ -50,10 +50,5 @@ private:
 
 	OBB *m_obb;
 	std::vector<int> m_cells;
-	std::vector<RigidBody*> m_tested;
-
-	// Sleep variables
-	bool m_isAwake;
-	bool m_canSleep;
-	float m_motionThreshold;
+	std::vector<Plane> m_planes;
 };

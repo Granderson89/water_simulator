@@ -7,12 +7,10 @@ void SearchGrid::initSearchGrid(const float tankWidth, const float tankDepth, co
 	m_neighbours.resize(m_numParticles);
 }
 
-void SearchGrid::updateSearchGrid(Model &model, ParticleData &particles, std::vector<RigidBody> rigidBodies)
+void SearchGrid::updateSearchGrid(Model &model, ParticleData &particles)
 {
 	// Reset the grid
 	m_grid.clear();
-	// Get number of rigid bodies
-	unsigned int num_rigid_bodies = rigidBodies.size();
 	// Record cell position of each particle
 	for (int i = 0; i < m_numParticles; i++)
 	{
@@ -37,35 +35,10 @@ void SearchGrid::updateSearchGrid(Model &model, ParticleData &particles, std::ve
 			}
 		}
 	}
-	// Record cells occupied by rigid bodies
-	for (int i = 0; i < rigidBodies.size(); i++)
-	{
-		RigidBody body = rigidBodies.at(i);
-		// Get the body's transform
-		auto transform = body.getMesh().getModel();
-		// Check which cell each vertex is in, if the domino is not already recorded
-		// as being present in the cell then add it
-		for (int j = 0; j < body.getMesh().getVertices().size(); j++)
-		{
-			Vertex v = body.getMesh().getVertices().at(j);
-			glm::vec3 v_world(transform * glm::vec4(v.getCoord(), 1.0f));
-			int col = floor((v_world.x - m_gridMin.x) / m_gridCellSize);
-			int row = floor((v_world.y - m_gridMin.y) / m_gridCellSize);
-			int cell = floor((v_world.z - m_gridMin.z) / m_gridCellSize);
-			std::vector<unsigned int> key;
-			key.push_back(col);
-			key.push_back(row);
-			key.push_back(cell);
-			if (std::find(m_grid[key].begin(), m_grid[key].end(), m_numParticles + i) == m_grid[key].end())
-			{
-				m_grid[key].push_back(m_numParticles + j);
-			}
-		}
-	}
-	updateNeighbours(model, particles, rigidBodies);
+	updateNeighbours(model, particles);
 }
 
-void SearchGrid::updateNeighbours(Model & model, ParticleData & particles, vector<RigidBody> rigidBodies)
+void SearchGrid::updateNeighbours(Model & model, ParticleData & particles)
 {
 	for (int p = 0; p < particles.getSize(); p++)
 	{
@@ -99,11 +72,6 @@ void SearchGrid::updateNeighbours(Model & model, ParticleData & particles, vecto
 								// Check if it is a particle
 								if (occupants.at(n) < m_numParticles)
 									distance = glm::length(particles.getProj(p) - particles.getProj(occupants.at(n)));
-								else {
-									// Get index of vertex of rigid body
-									int index = occupants.at(n) - m_numParticles;
-									distance = glm::length(particles.getProj(p) - rigidBodies.at(0).getMesh().getVertices().at(index).getCoord());
-								}
 								if (distance < 5.0f)
 									neighbours.push_back(occupants.at(n));
 							}
