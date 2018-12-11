@@ -39,7 +39,7 @@ void boundaryCollisionDetection(int i, glm::vec3 particle);
 void createCollisionConstraint(glm::vec3 particle, glm::vec3 ghost, unsigned int index, glm::vec3 collisionNormal);
 void ClosestPtPointOBB(glm::vec3 p, OBB b, glm::vec3 &q);
 void rigidBodyCollisionDetection(int i, glm::vec3 particle, RigidBody rigidBody);
-int TestPointPolyhedron(glm::vec3 p, Plane *h, int n);
+int TestPointPolyhedron(glm::vec3 p, Plane *h, int n, glm::vec3 &collisionNorm);
 float DistPointPlane(glm::vec3 q, Plane p);
 
 using namespace std;
@@ -51,7 +51,7 @@ const float diam = 2.0f * radius;
 // Volume of water
 const float width = 10.0f;
 const float depth = 2.0f;
-const float height = 15.0f;
+const float height = 2.0f;
 const unsigned int num_particles = width * depth * height;
 const float restDensity = 0.5f;
 // Volume of tank
@@ -69,7 +69,7 @@ glm::vec3 force(-tankWidth / 2.0f - 1.0f, 0.0f, 0.0f);
 const unsigned int solverIterations = 10;
 
 // Timestep
-const GLfloat dt = 0.2f;
+const GLfloat dt = 0.1f;
 
 // Particle shader
 Shader particleShader;
@@ -215,10 +215,19 @@ int main() {
 
 			// COLLISION CONSTRAINTS
 			// Solve collision constraints
-			for (int i = 0; i < collisionConstraints.size(); i++)
+			/*if (collisionConstraints.size() > 1)
+				std::cout << "Number of collision constraints = " << collisionConstraints.size() << std::endl;
+			*/for (int i = 0; i < collisionConstraints.size(); i++)
 			{
 				glm::vec3 dp;
 				collisionConstraints.at(i)->solveDistanceConstraint(dp);
+				/*if (collisionConstraints.size() > 1)
+				{
+					std::cout << "Correction = ("
+						<< dp.x << ", "
+						<< dp.y << ", "
+						<< dp.z << ")" << std::endl;
+				}*/
 				int p = collisionConstraints.at(i)->getIndex();
 				model.getDp(p) = dp;
 				particles.getProj(p) = particles.getProj(p) + model.getDp(p);
@@ -403,12 +412,28 @@ void createCollisionConstraint(glm::vec3 particle, glm::vec3 ghost, unsigned int
 // Detect all collisions with the rigid body and create a constraint as a response
 void rigidBodyCollisionDetection(int i, glm::vec3 particle, RigidBody rigidBody)
 {
-	if (TestPointPolyhedron(particle, &rigidBody.getPlanes().at(0), 6))
+	// Test if the particle is inside the rigidbody
+	glm::vec3 collisionNormal;
+	if (TestPointPolyhedron(particle, &rigidBody.getPlanes().at(0), 6, collisionNormal))
 	{
-		std::cout << "Collision Detected" << std::endl;
+		// If a collision is detected, create a collision constraint
+		// between the particle and a ghost on the rigidbody
+		/*std::cout << "Collision Detected" << std::endl;
+		std::cout << "Particle ("
+			<< particle.x << ", "
+			<< particle.y << ", "
+			<< particle.z << ")" << std::endl;
+		std::cout << "Collision Normal ("
+			<< collisionNormal.x << ", "
+			<< collisionNormal.y << ", "
+			<< collisionNormal.z << ")" << std::endl;*/
+
+
+		createCollisionConstraint(particle, particle, i, 5 * collisionNormal);
 	}
 }
 
+// Given point q, return distance to Plane p
 float DistPointPlane(glm::vec3 q, Plane p)
 {
 	// return Dot(q, p.n) - p.d; if plane equation normalized (||p.n||==1)
@@ -416,10 +441,18 @@ float DistPointPlane(glm::vec3 q, Plane p)
 }
 
 // Test if point p inside polyhedron given as the intersection volume of n halfspaces
-int TestPointPolyhedron(glm::vec3 p, Plane *h, int n) {
+int TestPointPolyhedron(glm::vec3 p, Plane *h, int n, glm::vec3 &collisionNorm) {
+	float leastPen = FLT_MAX;
 	for (int i = 0; i < n; i++) {
 		// Exit with ‘no containment’ if p ever found outside a halfspace
-		if (DistPointPlane(p, h[i]) > 0.0f) return 0;
+		float pen = DistPointPlane(p, h[i]);
+		if (pen > 0.0f)
+			return 0;
+		else if (abs(pen) < leastPen)
+		{
+			leastPen = abs(pen);
+			collisionNorm = -h[i].n;
+		}
 	}
 	// p inside all halfspaces, so p must be inside intersection volume
 	return 1;
