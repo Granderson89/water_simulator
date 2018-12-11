@@ -130,12 +130,12 @@ int main() {
 		*/
 		// Manage interaction
 		app.doMovement(dt);
-		// Get the mouse position
-		double mouse_x;
-		double mouse_y;
-		glfwGetCursorPos(app.getWindow(), &mouse_x, &mouse_y);
-		double xx = 2 * mouse_x / app.SCREEN_WIDTH - 1.0f;
-		rb.setPos(0, 5* xx);
+		// Control rigid body
+		float rotate = app.getRigidBodyRotate();
+		rb.rotate(rotate, glm::vec3(1.0f, 0.0f, 0.0f));
+		rb.translate(app.getRigidBodyMove());
+		rb.scale(app.getRigidBodyScale());
+
 		/*
 		** POSITION BASED FLUIDS
 		*/

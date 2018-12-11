@@ -95,7 +95,7 @@ static void mouseCallback(GLFWwindow *window, double xPos, double yPos)
 	Application::lastX = xPos;
 	Application::lastY = yPos;
 
-	//Application::camera.ProcessMouseMovement((GLfloat)xOffset, (GLfloat)yOffset);
+	Application::camera.ProcessMouseMovement((GLfloat)xOffset, (GLfloat)yOffset);
 }
 
 
@@ -133,7 +133,7 @@ int Application::initRender() {
 	glfwSetScrollCallback(m_window, scrollCallback);
 
 	// remove the mouse cursor
-	//glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
 	// moder GLEW approach
 	glewExperimental = GL_TRUE;
@@ -214,3 +214,59 @@ void Application::display() {
 	glfwSwapBuffers(m_window);
 }
 
+float Application::getRigidBodyRotate()
+{
+
+	glfwPollEvents();
+
+	// RB controls
+	if (keys[GLFW_KEY_KP_ADD])
+	{
+		return -0.1f;
+	}
+	if (keys[GLFW_KEY_KP_SUBTRACT])
+	{
+		return 0.1f;
+	}
+	return 0.0f;
+}
+
+glm::vec3 Application::getRigidBodyMove()
+{
+	glfwPollEvents();
+	glm::vec3 translate(0.0f);
+	// RB controls
+	if (keys[GLFW_KEY_KP_8])
+	{
+		translate.y = 0.1f;
+	}
+	if (keys[GLFW_KEY_KP_2])
+	{
+		translate.y = -0.1f;
+	}
+	if (keys[GLFW_KEY_KP_4])
+	{
+		translate.x = -0.1f;
+	}
+	if (keys[GLFW_KEY_KP_6])
+	{
+		translate.x = 0.1f;
+	}
+	return translate;
+}
+
+glm::vec3 Application::getRigidBodyScale()
+{
+	glfwPollEvents();
+	glm::vec3 scale(1.0f);
+	// RB controls
+	if (keys[GLFW_KEY_Z])
+	{
+		scale *= glm::vec3(1.1f);
+	}
+	if (keys[GLFW_KEY_X])
+	{
+		scale *= glm::vec3(0.9f);
+	}
+	return scale;
+}

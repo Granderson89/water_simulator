@@ -50,6 +50,10 @@ public:
 	void draw(const Mesh &mesh, Shader shader);
 	void display();
 	void terminate(){ glfwTerminate(); }
+	float getRigidBodyRotate();
+	glm::vec3 getRigidBodyMove();
+	glm::vec3 getRigidBodyScale();
+
 
 private:
 
